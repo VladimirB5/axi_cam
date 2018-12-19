@@ -99,7 +99,7 @@ BEGIN
     END CASE;        
  END PROCESS next_state_capture_logic;
  
- output_capture_logic : PROCESS (fsm_cap_c, cnt_s, data_s)
+ output_capture_logic : PROCESS (fsm_cap_c, cnt_s, data_s, data)
  BEGIN
     we_c <= '0';
     data_c <= data_s;

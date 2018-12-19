@@ -143,7 +143,8 @@ BEGIN
 -- combinational parts 
 -------------------------------------------------------------------------------
   
- next_state_axi_hp_logic : PROCESS (fsm_axi_s, empty, start, data_cnt_s, AWREADY, WREADY, wid_s, curr_address_s, trn_num_s, num_frame_s, new_frm_s)
+ next_state_axi_hp_logic : PROCESS (fsm_axi_s, empty, start, data_cnt_s, AWREADY, WREADY, wid_s, curr_address_s, trn_num_s, num_frame_s, new_frm_s,
+                                    address, BVALID)
  BEGIN
     fsm_axi_c      <= fsm_axi_s;
     data_cnt_c     <= data_cnt_s;

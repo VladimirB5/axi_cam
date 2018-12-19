@@ -167,7 +167,8 @@ ARCHITECTURE rtl OF axi_lite IS
   END PROCESS output_read_logic;
   
  -- output read mux
- output_read_mux : PROCESS (fsm_read_c)
+ output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, new_frm, power_s, 
+                            start_addr_s, curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s)
  BEGIN
     rdata_c <= (others => '0');
     rresp_c <= OKAY;
@@ -220,7 +221,7 @@ ARCHITECTURE rtl OF axi_lite IS
     END CASE;
  END PROCESS next_state_write_logic;
   
- output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, power_s, start_addr_s, start_sccb_s, test_ena_s, clock_mux_s)
+ output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, power_s, start_addr_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb)
  BEGIN
     awready_c <= '0';
     wready_c  <= '0';

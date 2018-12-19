@@ -83,7 +83,7 @@ begin
     END IF;       
  END PROCESS state_reg;
  
-next_state_logic : PROCESS (fsm_s, taken, start)
+next_state_logic : PROCESS (fsm_s, taken, start, addr_s)
   begin
     fsm_c <= fsm_s;
     case fsm_s is
@@ -109,6 +109,7 @@ END PROCESS next_state_logic;
 output_logic : PROCESS (fsm_c, send_s, addr_s)
 begin
  send_c <= send_s;
+ addr_c <= addr_s;
  CASE fsm_c is
    when idle => 
      send_c <= '0';

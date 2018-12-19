@@ -72,7 +72,7 @@ BEGIN
      end if;
   END PROCESS empty_gen;  
 
-  addr_gen : PROCESS (empty_s, re, address_s)
+  addr_gen : PROCESS (empty_s, re, address_s, read_ptr_s)
    variable bin : unsigned(9 downto 0);
    BEGIN
      bin := address_s + 1; 
