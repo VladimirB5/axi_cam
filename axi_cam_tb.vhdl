@@ -196,6 +196,7 @@ END COMPONENT;
    signal data    : std_logic_vector(31 downto 0);   
    
    signal write_start : std_logic := '0';
+   signal read_start : std_logic := '0';   
 begin
 
    i_axi_cam: axi_cam PORT MAP (
@@ -296,27 +297,81 @@ begin
            
    sim: process
      begin
+     AXI_L_ARPROT  <= (others => '0');
+     --AXI_L_ARVALID <= '0';     
      rst_n <= '0';
      wait for 100 ns;
      AXI_HP_AWREADY <= '1';
      AXI_HP_WREADY  <= '1';
      AXI_HP_BVALID  <= '1';
      rst_n <= '1';
-     wait for 100 us;
-     address <= x"00000000";
-     data    <= x"00000001";
-     write_start <= NOT write_start;
      
-     wait for 100 us;
+     wait for 50 us;
+     address <= x"00000000";
+     read_start <= NOT read_start;       
+     
+     wait for 50 us;
      address <= x"00000004";
-     data    <= x"00000001";
+     data    <= x"00000004";
      write_start <= NOT write_start;   
      
-     wait for 100 us;
+     wait for 50 us;
+     address <= x"00000004";
+     read_start <= NOT read_start;          
+     
+     wait for 50 us;
+     address <= x"00000000";
+     data    <= x"00000001";
+     write_start <= NOT write_start;  
+     
+     wait for 50 us;
+     address <= x"00000000";
+     read_start <= NOT read_start;   
+     
+     wait for 10 us;
+     address <= x"00000000";
+     read_start <= NOT read_start;         
+     
+     wait for 40 us;
      address <= x"0000000C";
      data    <= x"00000001";
-     write_start <= NOT write_start;      
-     wait for 300 us;
+     write_start <= NOT write_start;  
+     
+     wait for 50 us;
+     address <= x"0000000C";
+     read_start <= NOT read_start;     
+     
+     wait for 200 us;
+     
+     address <= x"00000000";
+     read_start <= NOT read_start;   
+     wait for 10 us;
+     
+     address <= x"00000000";
+     read_start <= NOT read_start;   
+     wait for 10 us;
+     
+     address <= x"00000000";
+     data    <= x"00000000";
+     write_start <= NOT write_start;       
+     wait for 10 us;
+     
+     address <= x"0000000C";
+     data    <= x"00000000";
+     write_start <= NOT write_start;       
+     wait for 10 us; 
+     
+     address <= x"00000000";
+     data    <= x"00000003";
+     write_start <= NOT write_start;       
+     wait for 10 us;
+     
+     address <= x"0000000C";
+     data    <= x"00000001";
+     write_start <= NOT write_start;       
+     wait for 10 us;      
+     
+     wait for 200 us;
      
      stop_sim <= true;
      --report "simulation finished successfully" severity FAILURE;
@@ -367,5 +422,24 @@ begin
        wait for 1 ns;
        AXI_L_bready <= '0'; 
    end process;
+   
+   read: process
+     begin 
+       AXI_L_ARVALID <= '0';
+       AXI_L_rready  <= '0';
+       wait until read_start'event;
+       wait until clk_100 = '0' AND clk_100'EVENT;
+       AXI_L_ARVALID <= '1';
+       AXI_L_araddr  <= address;
+       --wait until AXI_L_arready = '1' AND AXI_L_awready'EVENT;
+       wait until clk_100 = '1' AND clk_100'EVENT;
+       wait for 1 ns;
+       AXI_L_arvalid <= '0';
+       AXI_L_rready  <= '1';
+       AXI_L_araddr  <= (others => '0');
+       wait until clk_100 = '1' AND clk_100'EVENT;
+       wait for 1 ns;
+       AXI_L_rready  <= '0';
+   end process;   
 
 end ARCHITECTURE behavior; 

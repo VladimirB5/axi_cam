@@ -23,8 +23,7 @@ ENTITY cam_test IS
    href_cap    : OUT   std_logic;
    data_cap    : OUT   std_logic_vector(7 downto 0);   
    -- control interface
-   test_ena    : IN    std_logic;
-   new_frame   : OUT   std_logic
+   test_ena    : IN    std_logic
   ); 
 END ENTITY cam_test; 
 
@@ -45,8 +44,6 @@ ARCHITECTURE rtl OF cam_test IS
   signal data_cnt_s    : unsigned(4 downto 0);
   signal mux_c         : std_logic;
   signal mux_s         : std_logic;
-  signal new_frame_c   : std_logic;
-  signal new_frame_s   : std_logic;
   -- fsm read declaration
   TYPE t_test_state IS (S_IDLE, S_VSYNC, S_P1, S_HREF, S_P2, S_P3, S_END);
   SIGNAL fsm_test_c, fsm_test_s :t_test_state;  
@@ -65,7 +62,6 @@ BEGIN
       href_cap_s    <= '0';
       data_cap_s    <= (others => '0');
       data_cnt_s    <= (others => '0');
-      new_frame_s   <= '0';
     ELSIF clk = '1' AND clk'EVENT THEN
       fsm_test_s <= fsm_test_c;
       cnt1_s        <= cnt1_c;
@@ -75,7 +71,6 @@ BEGIN
       href_cap_s    <= href_cap_c;
       data_cap_s    <= data_cap_c;     
       data_cnt_s    <= data_cnt_c;
-      new_frame_s   <= new_frame_c;
     END IF;       
   END PROCESS state_reg;
 
@@ -166,13 +161,12 @@ BEGIN
     END CASE;        
  END PROCESS next_state_test_logic;
 
-  output_capture_logic : PROCESS (fsm_test_c, data_cnt_c, data_cap_s, new_frame_s)
+  output_capture_logic : PROCESS (fsm_test_c, data_cnt_c, data_cap_s)
  BEGIN    
     href_cap_c  <= '0';
     vsync_cap_c <= '0';
     data_cap_c  <= data_cap_s;
     mux_c       <= '1';
-    new_frame_c <= '0';
     CASE fsm_test_c IS
       WHEN S_IDLE =>
         mux_c <= '0';
@@ -198,7 +192,7 @@ BEGIN
  
       
       WHEN S_END =>
-        new_frame_c <= '1';
+      
     END CASE;        
  END PROCESS output_capture_logic; 
 
@@ -208,5 +202,4 @@ BEGIN
  vsync_cap <= vsync when mux_s = '0' else vsync_cap_s;
  href_cap  <= href  when mux_s = '0' else href_cap_s;
  data_cap  <= data  when mux_s = '0' else data_cap_s; 
- new_frame <= new_frame_s;
 END ARCHITECTURE rtl;

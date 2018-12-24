@@ -8,12 +8,14 @@ ENTITY fifo IS
     clk_100 : IN std_logic; -- 100Mhz clk
     rst_100n: IN std_logic; -- active in 0
     re      : IN std_logic;
+    sa_rstn : IN std_logic; -- sw reset a
     full_r  : OUT std_logic;
     empty   : OUT std_logic;
     data_r  : OUT std_logic_vector(63 downto 0);
     -- 25 mhz port
     clk_25  : IN  std_logic;
     rst_25n : IN  std_logic;
+    sb_rstn : IN  std_logic; -- sw reset b
     data_w  : IN  std_logic_vector(63 downto 0);
     we      : IN  std_logic;
     full_w  : OUT std_logic
@@ -29,6 +31,7 @@ COMPONENT fifo_read IS
     clk       : IN  std_logic; -- clk
     rstn      : IN  std_logic; -- active in 0
     re        : IN  std_logic;
+    sw_rstn   : IN std_logic; -- sw reset
     write_ptr : IN  std_logic_vector(5 downto 0);
     read_ptr  : OUT std_logic_vector(5 downto 0);    
     addr      : OUT std_logic_vector(8 downto 0);
@@ -43,6 +46,7 @@ COMPONENT fifo_write IS
     clk       : IN  std_logic; -- clk
     rstn      : IN  std_logic; -- active in 0
     we        : IN  std_logic;
+    sw_rstn   : IN std_logic; -- sw reset    
     read_ptr  : IN  std_logic_vector(5 downto 0);
     write_ptr : OUT std_logic_vector(5 downto 0);    
     addr      : OUT std_logic_vector(8 downto 0);
@@ -92,6 +96,7 @@ port map (
     clk       => clk_100,
     rstn      => rst_100n,
     re        => re,
+    sw_rstn   => sa_rstn,
     write_ptr => write_ptr_100,
     read_ptr  => read_ptr,
     addr      => addr_r,
@@ -106,6 +111,7 @@ port map(
     clk       => clk_25,
     rstn      => rst_25n,
     we        => we,
+    sw_rstn   => sb_rstn,
     read_ptr  => read_ptr_25,
     write_ptr => write_ptr,   
     addr      => addr_w,

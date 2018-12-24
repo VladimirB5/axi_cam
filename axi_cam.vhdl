@@ -142,12 +142,11 @@ COMPONENT axi_lite IS
   power        : OUT std_logic;
   test_ena     : OUT std_logic;
   clock_mux    : OUT std_logic;
+  hp_busy      : IN  std_logic; -- axi HP busy
   capture_busy : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
   num_frames   : IN  std_logic_vector(7 downto 0);
-  new_frm      : IN  std_logic;  -- new frame sended throught AXI HP
-  new_frm_cap  : IN  std_logic;  -- new frame from capture
-  new_frm_test : IN  std_logic   -- new frame from test block
+  new_frm      : IN  std_logic  -- new frame sended throught AXI HP
   ); 
 end COMPONENT;
 
@@ -214,11 +213,13 @@ COMPONENT axi_hp IS
   data_r  : IN  std_logic_vector(63 downto 0);
   
   -- control signals
-  start    : IN  std_logic;
+  power    : IN  std_logic;
   address  : IN  std_logic_vector(31 downto 0);
   curr_addr: OUT std_logic_vector(31 downto 0);
   num_frm  : OUT std_logic_vector(7 downto 0);
-  new_frm  : OUT std_logic
+  new_frm  : OUT std_logic;
+  busy     : OUT std_logic;
+  power_sf : OUT std_logic  -- power safety according to axi transaction
   ); 
 end COMPONENT; 
 
@@ -240,12 +241,14 @@ COMPONENT fifo IS
     clk_100 : IN std_logic; -- 100Mhz clk
     rst_100n: IN std_logic; -- active in 0
     re      : IN std_logic;
+    sa_rstn : IN std_logic; -- sw reset a
     full_r  : OUT std_logic;
     empty   : OUT std_logic;
     data_r  : OUT std_logic_vector(63 downto 0);
     -- 25 mhz port
     clk_25  : IN  std_logic;
     rst_25n : IN  std_logic;
+    sb_rstn : IN  std_logic; -- sw reset b
     data_w  : IN  std_logic_vector(63 downto 0);
     we      : IN  std_logic;
     full_w  : OUT std_logic
@@ -264,7 +267,7 @@ COMPONENT cam_capture IS
    -- internal signals
    rstn       : IN    std_logic;
    power      : IN    std_logic;
-   new_frame  : OUT   std_logic;
+   busy       : OUT   std_logic;
    -- fifo interface
    data_w     : OUT std_logic_vector(63 downto 0);
    we         : OUT std_logic;
@@ -296,8 +299,7 @@ COMPONENT cam_test IS
    href_cap    : OUT   std_logic;
    data_cap    : OUT   std_logic_vector(7 downto 0);   
    -- control interface
-   test_ena    : IN    std_logic;
-   new_frame   : OUT   std_logic
+   test_ena    : IN    std_logic
   ); 
 END COMPONENT; 
 
@@ -336,13 +338,12 @@ END COMPONENT;
  signal  curr_address     : std_logic_vector(31 downto 0); 
  signal  num_frames       : std_logic_vector(7 downto 0);
  signal  new_frame        : std_logic;
+ signal  hp_busy          : std_logic;
  
  -- signal throught clock domain
- signal  new_frame_cap_25, new_frame_cap_100   : std_logic;
- signal  new_frame_test_25, new_frame_test_100 : std_logic;
  signal  clk_mux_100, clk_mux_25               : std_logic;  
  signal  test_ena_100, test_ena_25             : std_logic;  
- signal  power_100, power_25                   : std_logic;  
+ signal  power, power_sf, power_25             : std_logic;  
  signal  cap_busy_25, cap_busy_100             : std_logic;
  
  signal  xclk_25   : std_logic; -- clock from camera used for capturing
@@ -383,15 +384,14 @@ END COMPONENT;
     busy_sccb  => busy_sccb,
   
     start_addr   => start_address,
-    power        => power_100,
+    power        => power,
     test_ena     => test_ena_100,
     clock_mux    => clk_mux_100,
+    hp_busy      => hp_busy,
     capture_busy => cap_busy_100,
     curr_addr    => curr_address, 
     num_frames   => num_frames,
-    new_frm      => new_frame,
-    new_frm_cap  => new_frame_cap_100,
-    new_frm_test => new_frame_test_100
+    new_frm      => new_frame
   );
 
   i_axi_hp: axi_hp PORT MAP (
@@ -456,11 +456,13 @@ END COMPONENT;
   data_r  => data_r,  --IN  std_logic_vector(63 downto 0);
   
   -- control signals
-  start    => '1',  --IN  std_logic;
+  power    => power,  --IN  std_logic;
   address  => start_address,  --std_logic_vector(31 downto 0);
   curr_addr=> curr_address,  --OUT std_logic_vector(31 downto 0);
   num_frm  => num_frames,  --OUT std_logic_vector(7 downto 0);
-  new_frm  => new_frame    --OUT std_logic
+  new_frm  => new_frame,    --OUT std_logic
+  busy     => hp_busy,
+  power_sf => power_sf
   ); 
   
   i_sccb : sccb PORT MAP (
@@ -478,12 +480,14 @@ END COMPONENT;
     clk_100  => clk_100, -- 100Mhz clk
     rst_100n => rstn_100,  -- active in 0
     re       => re,
+    sa_rstn  => power_sf,
     full_r   => full_r,
     empty    => empty,
     data_r   => data_r,
     -- 25 mhz port
     clk_25   => xclk_25,
     rst_25n  => xrstn_25,
+    sb_rstn  => power_25,
     data_w   => data_w,
     we       => we,
     full_w   => full_w
@@ -500,7 +504,7 @@ END COMPONENT;
     -- internal signals
     rstn       => xrstn_25, 
     power      => power_25,
-    new_frame  => new_frame_cap_25,
+    busy       => cap_busy_25,
     -- fifo interface
     data_w     => data_w,
     we         => we,
@@ -528,8 +532,7 @@ END COMPONENT;
    href_cap    => href_cap,
    data_cap    => data_cap,
    -- control interface
-   test_ena    => test_ena_25,
-   new_frame   => new_frame_test_25
+   test_ena    => test_ena_25
   ); 
   
   -------------------------------------------------------------------------------
@@ -540,24 +543,6 @@ END COMPONENT;
   );  
   
   ------------------------------------------------------------------------------- 
-  i_frame_cap_sync : synchronizer
-  port map (
-     clk      => clk_100,
-     res_n    => rstn_100,
-     data_in  => new_frame_cap_25,
-     data_out => new_frame_cap_100
-  );
-  
-  ------------------------------------------------------------------------------- 
-  i_frame_test_sync : synchronizer
-  port map (
-     clk      => clk_100,
-     res_n    => rstn_100,
-     data_in  => new_frame_test_25,
-     data_out => new_frame_test_100
-  );
-  
-  ------------------------------------------------------------------------------- 
   i_cap_busy : synchronizer
   port map (
      clk      => clk_100,
@@ -565,6 +550,7 @@ END COMPONENT;
      data_in  => cap_busy_25,
      data_out => cap_busy_100
   );  
+  
   ------------------------------------------------------------------------------- 
   i_clock_mux : synchronizer
   port map (
@@ -588,7 +574,7 @@ END COMPONENT;
   port map (
      clk      => xclk_25,
      res_n    => xrstn_25, 
-     data_in  => power_100,
+     data_in  => power_sf,
      data_out => power_25
   );    
 END ARCHITECTURE RTL;

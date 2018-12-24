@@ -8,6 +8,7 @@ ENTITY fifo_read IS
     clk       : IN  std_logic; -- clk
     rstn      : IN  std_logic; -- active in 0
     re        : IN  std_logic;
+    sw_rstn   : IN std_logic; -- sw reset
     write_ptr : IN  std_logic_vector(5 downto 0);
     read_ptr  : OUT std_logic_vector(5 downto 0);    
     addr      : OUT std_logic_vector(8 downto 0);
@@ -72,11 +73,14 @@ BEGIN
      end if;
   END PROCESS empty_gen;  
 
-  addr_gen : PROCESS (empty_s, re, address_s, read_ptr_s)
+  addr_gen : PROCESS (sw_rstn, empty_s, re, address_s, read_ptr_s)
    variable bin : unsigned(9 downto 0);
    BEGIN
      bin := address_s + 1; 
-     if empty_s = '0' and re = '1' then
+     if sw_rstn = '0' then
+       address_c  <= (others => '0');
+       read_ptr_c <= (others => '0');
+     elsif empty_s = '0' and re = '1' then
        address_c  <= bin;
        read_ptr_c <= std_logic_vector(bin(9 downto 4)) xor std_logic_vector('0'&bin((9) DOWNTO 5)); -- transfer to gray code
      else 

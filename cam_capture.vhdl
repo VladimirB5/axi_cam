@@ -14,7 +14,7 @@ ENTITY cam_capture IS
    -- internal signals
    rstn       : IN    std_logic;
    power      : IN    std_logic;
-   new_frame  : OUT   std_logic;
+   busy       : OUT   std_logic;
    -- fifo interface
    data_w     : OUT std_logic_vector(63 downto 0);
    we         : OUT std_logic;
@@ -29,6 +29,8 @@ ARCHITECTURE rtl OF cam_capture IS
   signal cnt_s  : unsigned(2 downto 0);
   signal we_c   : std_logic;
   signal we_s   : std_logic;
+  signal busy_c : std_logic;
+  signal busy_s : std_logic;
   -- fsm read declaration
   TYPE t_capture_state IS (S_IDLE, S_WAIT_VSYNC, S_WAIT_HREF, S_CAPTURE, S_WRITE);
   SIGNAL fsm_cap_c, fsm_cap_s :t_capture_state;   
@@ -44,11 +46,13 @@ BEGIN
       cnt_s     <= (others => '0');
       we_s      <= '0';
       data_s    <= (others => '0');
+      busy_s    <= '0';
     ELSIF clk = '1' AND clk'EVENT THEN
       fsm_cap_s <= fsm_cap_c;
       cnt_s     <= cnt_c;
       we_s      <= we_c;      
       data_s    <= data_c;
+      busy_s    <= busy_c;
     END IF;       
   END PROCESS state_reg;
 
@@ -104,14 +108,17 @@ BEGIN
     we_c <= '0';
     data_c <= data_s;
     cnt_c  <= cnt_s;
+    busy_c <= '1';
     CASE fsm_cap_c IS
       WHEN S_IDLE =>
         cnt_c <= (others => '0');
+        busy_c <= '0';
         
       WHEN S_WAIT_VSYNC =>
-      
+        busy_c <= '0';
+        
       WHEN S_WAIT_HREF =>
-      
+        
       WHEN S_CAPTURE =>
         cnt_c <= cnt_s + 1;
         data_c(63 downto 8) <= data_s(55 downto 0);
@@ -131,7 +138,7 @@ BEGIN
 -------------------------------------------------------------------------------
 RESET     <= not rstn;
 pwdn      <= power;
-new_frame <= vsync;
 data_w    <= data_s;
 we        <= we_s;
+busy      <= busy_s;
 END ARCHITECTURE rtl;

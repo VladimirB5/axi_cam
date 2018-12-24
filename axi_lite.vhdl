@@ -45,15 +45,13 @@ ENTITY axi_lite IS
   power        : OUT std_logic;
   test_ena     : OUT std_logic;
   clock_mux    : OUT std_logic;
+  hp_busy      : IN  std_logic; -- axi HP busy
   capture_busy : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
   num_frames   : IN  std_logic_vector(7 downto 0);
-  new_frm      : IN  std_logic;  -- new frame sended throught AXI HP
-  new_frm_cap  : IN  std_logic;  -- new frame from capture
-  new_frm_test : IN  std_logic   -- new frame from test block
+  new_frm      : IN  std_logic   -- new frame sended throught AXI HP
   ); 
 END ENTITY axi_lite;
-
 ARCHITECTURE rtl OF axi_lite IS
   -- output registers
   signal  arready_c, arready_s : std_logic; 
@@ -71,6 +69,10 @@ ARCHITECTURE rtl OF axi_lite IS
   signal busy_sccb_c, busy_sccb_s     : std_logic;
   signal clock_mux_c, clock_mux_s     : std_logic;
   signal test_ena_c, test_ena_s       : std_logic;
+  signal stop_c, stop_s               : std_logic; -- when stop is set to 1, block is deactivate after frame is finished
+  signal new_frame_c, new_frame_s     : std_logic; -- latched value of new frame
+  signal addr_lock_c, addr_lock_s     : std_logic; -- signalized that address is locked to in axi_hp, signal is set in transition 0 -> 1 on busy_hp
+  signal hp_busy_c, hp_busy_s         : std_logic; -- latched value busy_hp
   
   -- fsm read declaration
   TYPE t_read_state IS (R_IDLE, R_AREADY, R_VDATA);
@@ -87,7 +89,7 @@ ARCHITECTURE rtl OF axi_lite IS
   constant DECERR : std_logic_vector(1 downto 0) := B"11";
   begin
   -- sequential 
- state_reg : PROCESS (ACLK,ARESETn)
+ state_reg : PROCESS (ACLK, ARESETn)
    BEGIN
     IF ARESETn = '0' THEN
       arready_s    <= '0';
@@ -100,9 +102,13 @@ ARCHITECTURE rtl OF axi_lite IS
       rdata_s      <= (others => '0');
       start_addr_s <= (others => '0');
       power_s      <= '0';
+      stop_s       <= '0';
+      new_frame_s  <= '0';
+      addr_lock_s  <= '0';
       start_sccb_s <= '0';
       clock_mux_s  <= '0';
       test_ena_s   <= '0';
+      hp_busy_s    <= '0';
       fsm_read_s   <= R_IDLE; -- init state after reset
       fsm_write_s  <= W_IDLE;
     ELSIF ACLK = '1' AND ACLK'EVENT THEN
@@ -116,9 +122,13 @@ ARCHITECTURE rtl OF axi_lite IS
       rdata_s      <= rdata_c;
       start_addr_s <= start_addr_c;
       power_s      <= power_c;
+      stop_s       <= stop_c;
+      new_frame_s  <= new_frame_c;
+      addr_lock_s  <= addr_lock_c;
       start_sccb_s <= start_sccb_c; 
       clock_mux_s  <= clock_mux_c;
-      test_ena_s   <= test_ena_c;      
+      test_ena_s   <= test_ena_c;
+      hp_busy_s    <= hp_busy_c;
       fsm_read_s   <= fsm_read_c; -- next fsm state
       fsm_write_s  <= fsm_write_c;
     END IF;       
@@ -167,21 +177,37 @@ ARCHITECTURE rtl OF axi_lite IS
   END PROCESS output_read_logic;
   
  -- output read mux
- output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, new_frm, power_s, 
+ hp_busy_c <= hp_busy;
+ output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, hp_busy_s, new_frm, new_frame_s, power_s, stop_s, addr_lock_s,
                             start_addr_s, curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s)
  BEGIN
     rdata_c <= (others => '0');
     rresp_c <= OKAY;
+    IF new_frm = '1' THEN
+      new_frame_c <= '1';
+    ELSE
+      new_frame_c <= new_frame_s;
+    END IF;
+    IF hp_busy_s = '0' and hp_busy = '1' THEN
+      addr_lock_c <= '1';
+    ELSE
+      addr_lock_c <= addr_lock_s; 
+    END IF;    
     IF ARVALID = '1' AND fsm_read_s = R_AREADY THEN
       CASE ARADDR(4 downto 2) IS 
         WHEN "000" => 
           rdata_c(31 downto 16) <= x"AA55";
           rdata_c(15 downto 8)  <= num_frames;
-          rdata_c(7 downto 4)   <= (others => '0');
-          rdata_c(3)            <= busy_sccb;          
-          rdata_c(2)            <= capture_busy;
-          rdata_c(1)            <= new_frm;
+          rdata_c(7)            <= '0';
+          rdata_c(6)            <= busy_sccb; 
+          rdata_c(5)            <= addr_lock_s;
+          rdata_c(4)            <= hp_busy;          
+          rdata_c(3)            <= capture_busy;
+          rdata_c(2)            <= new_frame_s;
+          rdata_c(1)            <= stop_s;          
           rdata_c(0)            <= power_s;
+          new_frame_c           <= '0'; -- clear after read new frame register
+          addr_lock_c           <= '0'; -- clear after read address lock register
         WHEN "001" => 
           rdata_c <= start_addr_s;
         WHEN "010" =>   
@@ -221,7 +247,7 @@ ARCHITECTURE rtl OF axi_lite IS
     END CASE;
  END PROCESS next_state_write_logic;
   
- output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, power_s, start_addr_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb)
+ output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, power_s, start_addr_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb, stop_s, new_frm)
  BEGIN
     awready_c <= '0';
     wready_c  <= '0';
@@ -232,6 +258,7 @@ ARCHITECTURE rtl OF axi_lite IS
     start_sccb_c <= start_sccb_s;
     test_ena_c   <= test_ena_s;
     clock_mux_c  <= clock_mux_s;
+    stop_c       <= stop_s;
     CASE fsm_write_c IS
       WHEN W_IDLE => 
         bresp_c   <= OKAY;
@@ -243,6 +270,7 @@ ARCHITECTURE rtl OF axi_lite IS
         CASE AWADDR(4 downto 2) IS
           WHEN "000" => 
             power_c <= WDATA(0);
+            stop_c  <= WDATA(1);
             IF busy_sccb = '0' THEN
               start_sccb_c <= '1';
             END IF;
@@ -267,6 +295,9 @@ ARCHITECTURE rtl OF axi_lite IS
     END CASE;
     IF busy_sccb = '0' THEN
       start_sccb_c <= '0';
+    END IF;
+    IF stop_s = '1' AND new_frm = '1' THEN
+      power_c <= '0';
     END IF;
   END PROCESS output_write_logic; 
   
