@@ -226,7 +226,7 @@ BEGIN
       WHEN S_END_FRAME =>
         IF (trn_num_s < 4799) THEN -- 4799 value for full frame
           wid_c <= wid_s + 1;
-          curr_address_c <= curr_address_s + 4;
+          curr_address_c <= curr_address_s + 32;
           fsm_axi_c <= S_WAIT_FIFO; 
           trn_num_c <= trn_num_s + 1;
         ELSE
