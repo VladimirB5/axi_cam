@@ -104,9 +104,11 @@ ARCHITECTURE rtl OF axi_hp IS
   signal wid_s          : unsigned(5 downto 0);
   signal bready_c       : std_logic;
   signal bready_s       : std_logic;
+  signal wstrb_c        : std_logic_vector(7 downto 0);
+  signal wstrb_s        : std_logic_vector(7 downto 0);
   
   -- fsm read declaration
-  TYPE t_axi_state IS (S_IDLE, S_WAIT_FIFO, S_AWVALID, S_WAIT_AWREADY, S_WRITE, S_WAIT_WRITE, S_WLAST, S_RESPONSE, S_END_FRAME);
+  TYPE t_axi_state IS (S_IDLE, S_WAIT_FIFO, S_AWVALID, S_WAIT_AWREADY, S_RE, S_SAVE, S_WVALID, S_WLAST, S_RESPONSE, S_END_FRAME);
   SIGNAL fsm_axi_c, fsm_axi_s :t_axi_state;  
 BEGIN 
 -------------------------------------------------------------------------------
@@ -128,6 +130,7 @@ BEGIN
       awvalid_s      <= '0';
       wvalid_s       <= '0';
       wlast_s        <= '0';
+      wstrb_s        <= (others => '0');
       wid_s          <= (others => '0');
       bready_s       <= '0';
     ELSIF ACLK = '1' AND ACLK'EVENT THEN
@@ -144,6 +147,7 @@ BEGIN
       awvalid_s      <= awvalid_c;
       wvalid_s       <= wvalid_c;
       wlast_s        <= wlast_c;
+      wstrb_s        <= wstrb_c;      
       wid_s          <= wid_c;
       bready_s       <= bready_c;
     END IF;       
@@ -184,8 +188,7 @@ BEGIN
       
       WHEN S_AWVALID =>
         IF AWREADY = '1' THEN
-          data_cnt_c <= data_cnt_s + 1;
-          fsm_axi_c  <= S_WRITE;
+          fsm_axi_c  <= S_RE;
         ELSE
           fsm_axi_c  <= S_WAIT_AWREADY;
         END IF;
@@ -193,23 +196,25 @@ BEGIN
       WHEN S_WAIT_AWREADY =>
         IF AWREADY = '1' THEN
           --data_cnt_c <= data_cnt_s + 1;
-          fsm_axi_c <= S_WRITE;
+          fsm_axi_c <= S_RE;
         END IF;
         
-      WHEN S_WRITE =>
+      WHEN S_RE =>
+        fsm_axi_c <= S_SAVE;
+        
+      WHEN S_SAVE =>
         IF data_cnt_s = 15 THEN
           fsm_axi_c <= S_WLAST;
-        ELSIF WREADY = '0' THEN
-          fsm_axi_c <= S_WAIT_WRITE;
         ELSE 
-          data_cnt_c <= data_cnt_s + 1;
-        END IF;
-      
-      WHEN S_WAIT_WRITE =>
-        IF WREADY = '1' THEN
-          fsm_axi_c <= S_WRITE;
+          fsm_axi_c <= S_WVALID;
         END IF;        
-        
+      
+      WHEN S_WVALID =>
+        IF WREADY = '1' THEN
+          data_cnt_c <= data_cnt_s + 1;
+          fsm_axi_c <= S_RE;
+        END IF;       
+      
       WHEN S_WLAST =>
         fsm_axi_c <= S_RESPONSE;
       
@@ -219,7 +224,7 @@ BEGIN
         END IF;
       
       WHEN S_END_FRAME =>
-        IF (trn_num_s < 10) THEN -- 4799 value for full frame
+        IF (trn_num_s < 4799) THEN -- 4799 value for full frame
           wid_c <= wid_s + 1;
           curr_address_c <= curr_address_s + 4;
           fsm_axi_c <= S_WAIT_FIFO; 
@@ -232,7 +237,7 @@ BEGIN
     END CASE; 
  END PROCESS next_state_axi_hp_logic;
  
- output_axi_hp_logic : PROCESS (fsm_axi_c, re_s, awvalid_s, wvalid_s, wlast_s, bready_s, data_r)
+ output_axi_hp_logic : PROCESS (fsm_axi_c, re_s, awvalid_s, wvalid_s, wlast_s, bready_s, data_r, wstrb_s)
  BEGIN
     re_c           <= '0';
     awvalid_c      <= '0';
@@ -240,6 +245,7 @@ BEGIN
     wlast_c        <= '0';
     bready_c       <= '0';
     busy_c         <= '1';
+    wstrb_c        <= (others => '0');
     CASE fsm_axi_c IS
       WHEN S_IDLE =>
         busy_c <= '0';
@@ -247,21 +253,25 @@ BEGIN
       WHEN S_WAIT_FIFO =>
       
       WHEN S_AWVALID =>
-        re_c <= '1';
         awvalid_c <= '1';
         
       WHEN S_WAIT_AWREADY =>
                 
-      WHEN S_WRITE =>
+      WHEN S_RE =>
         re_c     <= '1';
-        wvalid_c <='1';
-      
-      WHEN S_WAIT_WRITE =>
-        wvalid_c <='1';
+        --wstrb_c  <= (others => '1');
         
+      WHEN S_SAVE =>
+        --wstrb_c  <= (others => '1');
+      
+      WHEN S_WVALID =>             
+        wvalid_c <= '1';
+        wstrb_c  <= (others => '1');
+                
       WHEN S_WLAST =>      
-        wvalid_c <='1';
+        wvalid_c <= '1';
         wlast_c  <= '1';
+        wstrb_c  <= (others => '1');        
       
       WHEN S_RESPONSE =>
         bready_c <= '1';
@@ -288,6 +298,7 @@ BEGIN
   AWADDR        <= std_logic_vector(curr_address_s);
   BREADY        <= bready_s;
   WDATA         <= data_r;
+  WSTRB         <= wstrb_s;  
   -- axi static signals
   -- read signals
   ARADDR        <= (others => '0');
@@ -310,6 +321,5 @@ BEGIN
   AWSIZE        <= "011";  -- 8 
   AWBURST       <= "01";   -- INCR  
   AWQOS         <= (others => '0');   
-  WSTRB         <= (others => '1');
   WRISSUECAP1EN <= '0';  
 END ARCHITECTURE rtl;
