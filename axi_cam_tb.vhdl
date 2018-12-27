@@ -34,7 +34,7 @@ COMPONENT axi_cam IS
   AXI_L_ARVALID        : IN  std_logic;
   AXI_L_ARREADY        : OUT std_logic;
   AXI_L_ARADDR         : IN std_logic_vector(31 downto 0);
-  AXI_L_ARPROT         : IN std_logic_vector(1 downto 0);
+  AXI_L_ARPROT         : IN std_logic_vector(2 downto 0);
   -- read data channel
   AXI_L_RVALID         : OUT std_logic;
   AXI_L_RREADY         : IN std_logic;
@@ -130,7 +130,7 @@ END COMPONENT;
    signal AXI_L_ARVALID : std_logic;
    signal AXI_L_ARREADY : std_logic;
    signal AXI_L_ARADDR  : std_logic_vector(31 downto 0);
-   signal AXI_L_ARPROT  : std_logic_vector(1 downto 0);
+   signal AXI_L_ARPROT  : std_logic_vector(2 downto 0);
     -- read data channel
    signal AXI_L_RVALID  : std_logic;
    signal AXI_L_RREADY  : std_logic;

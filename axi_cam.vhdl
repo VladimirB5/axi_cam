@@ -29,7 +29,7 @@ ENTITY axi_cam IS
   AXI_L_ARVALID        : IN  std_logic;
   AXI_L_ARREADY        : OUT std_logic;
   AXI_L_ARADDR         : IN std_logic_vector(31 downto 0);
-  AXI_L_ARPROT         : IN std_logic_vector(1 downto 0);
+  AXI_L_ARPROT         : IN std_logic_vector(2 downto 0);
   -- read data channel
   AXI_L_RVALID         : OUT std_logic;
   AXI_L_RREADY         : IN std_logic;
@@ -126,7 +126,7 @@ COMPONENT axi_lite IS
   ARVALID : IN  std_logic;
   ARREADY : OUT std_logic;
   ARADDR  : IN std_logic_vector(31 downto 0);
-  ARPROT  : IN std_logic_vector(1 downto 0);
+  ARPROT  : IN std_logic_vector(2 downto 0);
   -- read data channel
   RVALID  : OUT std_logic;
   RREADY  : IN std_logic;

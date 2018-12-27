@@ -29,7 +29,7 @@ ENTITY axi_lite IS
   ARVALID : IN  std_logic;
   ARREADY : OUT std_logic;
   ARADDR  : IN std_logic_vector(31 downto 0);
-  ARPROT  : IN std_logic_vector(1 downto 0);
+  ARPROT  : IN std_logic_vector(2 downto 0);
   -- read data channel
   RVALID  : OUT std_logic;
   RREADY  : IN std_logic;
