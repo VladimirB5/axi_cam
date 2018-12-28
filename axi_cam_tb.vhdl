@@ -80,7 +80,7 @@ COMPONENT axi_cam IS
   AXI_HP_ARLEN         : OUT std_logic_vector(3 downto 0);
   AXI_HP_ARSIZE        : OUT std_logic_vector(2 downto 0);
   AXI_HP_ARBURST       : OUT std_logic_vector(1 downto 0);
-  AXI_HP_ARQOS         : OUT std_logic_vector(2 downto 0);
+  AXI_HP_ARQOS         : OUT std_logic_vector(3 downto 0);
   -- read data channel  
   AXI_HP_RDATA         : IN  std_logic_vector(63 downto 0);
   AXI_HP_RVALID        : IN  std_logic;
@@ -176,7 +176,7 @@ END COMPONENT;
    signal AXI_HP_ARLEN         : std_logic_vector(3 downto 0);
    signal AXI_HP_ARSIZE        : std_logic_vector(2 downto 0);
    signal AXI_HP_ARBURST       : std_logic_vector(1 downto 0);
-   signal AXI_HP_ARQOS         : std_logic_vector(2 downto 0);
+   signal AXI_HP_ARQOS         : std_logic_vector(3 downto 0);
      -- read data channel  
    signal AXI_HP_RDATA         : std_logic_vector(63 downto 0);
    signal AXI_HP_RVALID        : std_logic;

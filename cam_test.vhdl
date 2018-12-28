@@ -32,8 +32,6 @@ ARCHITECTURE rtl OF cam_test IS
   signal cnt1_s        : unsigned(10 downto 0);
   signal cnt2_c        : unsigned(9 downto 0);  -- max 640 
   signal cnt2_s        : unsigned(9 downto 0);
-  signal send_frames_c : unsigned(2 downto 0);
-  signal send_frames_s : unsigned(2 downto 0);
   signal vsync_cap_c   : std_logic;
   signal vsync_cap_s   : std_logic;
   signal href_cap_c    : std_logic;
@@ -57,7 +55,7 @@ BEGIN
       fsm_test_s <= S_IDLE;
       cnt1_s        <= (others => '0');
       cnt2_s        <= (others => '0');
-      send_frames_s <= (others => '0');
+      mux_s         <= '0';
       vsync_cap_s   <= '0';
       href_cap_s    <= '0';
       data_cap_s    <= (others => '0');
@@ -66,7 +64,7 @@ BEGIN
       fsm_test_s <= fsm_test_c;
       cnt1_s        <= cnt1_c;
       cnt2_s        <= cnt2_c;
-      send_frames_s <= send_frames_c;
+      mux_s         <= mux_c;
       vsync_cap_s   <= vsync_cap_c;
       href_cap_s    <= href_cap_c;
       data_cap_s    <= data_cap_c;     
@@ -77,10 +75,9 @@ BEGIN
 -------------------------------------------------------------------------------
 -- combinational parts 
 -------------------------------------------------------------------------------
- next_state_test_logic : PROCESS (fsm_test_s, cnt1_s, cnt2_s, data_cnt_s, send_frames_s, test_ena)
+ next_state_test_logic : PROCESS (fsm_test_s, cnt1_s, cnt2_s, data_cnt_s, test_ena)
  BEGIN
     fsm_test_c     <= fsm_test_s;
-    send_frames_c  <= send_frames_s;
     cnt1_c         <= cnt1_s;
     cnt2_c         <= cnt2_s;
     data_cnt_c     <= data_cnt_s;
@@ -144,7 +141,6 @@ BEGIN
           fsm_test_c <= S_IDLE;
         ELSIF cnt1_s = p3_dly-1  THEN
           cnt1_c     <= (others => '0');
-          send_frames_c <= send_frames_s + 1;
           fsm_test_c <= S_END;
         ELSE 
           cnt1_c <= cnt1_s + 1;

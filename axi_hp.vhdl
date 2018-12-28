@@ -47,7 +47,7 @@ ENTITY axi_hp IS
   ARLEN   : OUT std_logic_vector(3 downto 0);
   ARSIZE  : OUT std_logic_vector(2 downto 0);
   ARBURST : OUT std_logic_vector(1 downto 0);
-  ARQOS   : OUT std_logic_vector(2 downto 0);
+  ARQOS   : OUT std_logic_vector(3 downto 0);
   -- read data channel  
   RDATA   : IN  std_logic_vector(63 downto 0);
   RVALID  : IN  std_logic;
@@ -289,6 +289,7 @@ BEGIN
   num_frm       <= std_logic_vector(num_frame_s);
   busy          <= busy_s;
   power_sf      <= power_sf_s;
+  curr_addr     <= std_logic_vector(curr_address_s);
   -- axi signals
   AWVALID       <= awvalid_s;
   WVALID        <= wvalid_s;
