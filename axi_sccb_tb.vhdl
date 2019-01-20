@@ -2,10 +2,10 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 --use IEEE.numeric_std.all;
 
-ENTITY axi_cam_tb IS 
-END ENTITY axi_cam_tb;
+ENTITY axi_sccb_tb IS 
+END ENTITY axi_sccb_tb;
 
-ARCHITECTURE behavior OF axi_cam_tb IS
+ARCHITECTURE behavior OF axi_sccb_tb IS
 -------------------------------------------------------------------------------
 COMPONENT axi_cam IS
   port (
@@ -307,71 +307,21 @@ begin
      rst_n <= '1';
      
      wait for 50 us;
-     address <= x"00000000";
+     address <= x"0000000C";
      read_start <= NOT read_start;       
      
      wait for 50 us;
-     address <= x"00000004";
+     address <= x"0000000C";
      data    <= x"00000004";
-     write_start <= NOT write_start;   
-     
-     wait for 50 us;
-     address <= x"00000004";
-     read_start <= NOT read_start;          
-     
-     wait for 50 us;
-     address <= x"00000000";
-     data    <= x"00000001";
      write_start <= NOT write_start;  
      
-     wait for 50 us;
-     address <= x"00000000";
-     read_start <= NOT read_start;   
+     wait for 400 us;
      
      wait for 10 us;
-     address <= x"00000000";
-     read_start <= NOT read_start;         
-     
-     wait for 40 us;
-     address <= x"0000000C";
-     data    <= x"00000001";
-     write_start <= NOT write_start;  
-     
-     wait for 50 us;
      address <= x"0000000C";
      read_start <= NOT read_start;     
      
-     wait for 200 us;
-     
-     address <= x"00000000";
-     read_start <= NOT read_start;   
      wait for 10 us;
-     
-     address <= x"00000000";
-     read_start <= NOT read_start;   
-     wait for 10 us;
-     
-     address <= x"00000000";
-     data    <= x"00000000";
-     write_start <= NOT write_start;       
-     wait for 10 us;
-     
-     address <= x"0000000C";
-     data    <= x"00000000";
-     write_start <= NOT write_start;       
-     wait for 10 us; 
-     
-     address <= x"00000000";
-     data    <= x"00000003";
-     write_start <= NOT write_start;       
-     wait for 10 us;
-     
-     address <= x"0000000C";
-     data    <= x"00000001";
-     write_start <= NOT write_start;       
-     wait for 10 us;      
-     
-     wait for 200 us;
      
      stop_sim <= true;
      --report "simulation finished successfully" severity FAILURE;

@@ -12,15 +12,19 @@ GHDL=ghdl
 #    carry_ripple_adder_testbench \
 #    full_adder_testbenc
 
-all: run
+all: cam sccb
+
+cam: elab
+	ghdl -e --std=08 axi_cam_tb
 	ghdl -r --std=08 axi_cam_tb --wave=axi_cam_tb.ghw
 
-run: elab
-	ghdl -e --std=08 axi_cam_tb
+sccb: elab
+	ghdl -e --std=08 axi_sccb_tb
+	ghdl -r --std=08 axi_sccb_tb --wave=axi_sccb_tb.ghw
 
-elab: ov7670_reg_rom.vhdl i2c_sender.vhd sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl check
+elab: ov7670_reg_rom.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl check
 	ghdl -a --std=08 ov7670_reg_rom.vhdl
-	ghdl -a --std=08 i2c_sender.vhd
+	ghdl -a --std=08 sccb_sender.vhdl
 	ghdl -a --std=08 sccb.vhdl
 	ghdl -a --std=08 axi_lite.vhdl
 	ghdl -a --std=08 RAM.vhdl
@@ -36,10 +40,11 @@ elab: ov7670_reg_rom.vhdl i2c_sender.vhd sccb.vhdl axi_lite.vhdl fifo_write.vhdl
 	ghdl -a --std=08 axi_hp.vhdl
 	ghdl -a --std=08 axi_cam.vhdl
 	ghdl -a --std=08 axi_cam_tb.vhdl
+	ghdl -a --std=08 axi_sccb_tb.vhdl
 
-check: ov7670_reg_rom.vhdl i2c_sender.vhd sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl 
+check: ov7670_reg_rom.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl
 	ghdl -s --std=08 ov7670_reg_rom.vhdl
-	ghdl -s --std=08 i2c_sender.vhd
+	ghdl -s --std=08 sccb_sender.vhdl
 	ghdl -s --std=08 sccb.vhdl
 	ghdl -s --std=08 axi_lite.vhdl
 	ghdl -s --std=08 fifo_write.vhdl
@@ -55,6 +60,7 @@ check: ov7670_reg_rom.vhdl i2c_sender.vhd sccb.vhdl axi_lite.vhdl fifo_write.vhd
 	ghdl -s --std=08 axi_hp.vhdl
 	ghdl -s --std=08 axi_cam.vhdl
 	ghdl -s --std=08 axi_cam_tb.vhdl
+	ghdl -s --std=08 axi_sccb_tb.vhdl
 
 #fifo: RAM.vhdl fifo_write.vhdl fifo_read.vhdl fifo.vhdl
 #	ghdl -a --std=08 RAM.vhdl

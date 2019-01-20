@@ -2,7 +2,7 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 --use IEEE.numeric_std.all;
 
-ENTITY axi_cam IS
+entity axi_cam IS
   port (
     -- clocks and resets
   clk_100              : IN std_logic;
@@ -95,7 +95,7 @@ ENTITY axi_cam IS
   data                 : IN   std_logic_vector(7 downto 0);
   reset                : OUT  std_logic;
   pwdn                 : OUT  std_logic;  
-  siod                 : OUT  std_logic;
+  siod                 : INOUT  std_logic;
   sioc                 : OUT  std_logic
   ); 
 END ENTITY axi_cam;
@@ -136,12 +136,15 @@ COMPONENT axi_lite IS
   -- sccb interface
   start_sccb : OUT std_logic;
   busy_sccb  : IN  std_logic;
+  ack_sccb   : IN  std_logic;
   
   --registers 
   start_addr   : OUT std_logic_vector(31 downto 0);
   power        : OUT std_logic;
   test_ena     : OUT std_logic;
   clock_mux    : OUT std_logic;
+  cam_reset    : OUT std_logic;
+  cam_pwdn     : OUT std_logic;
   hp_busy      : IN  std_logic; -- axi HP busy
   capture_busy : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
@@ -229,8 +232,9 @@ COMPONENT sccb IS
     rst_n : IN std_logic; -- active in 0
     start : IN std_logic;
     busy  : OUT std_logic;
+    ack   : OUT std_logic;    
     -- sccb interface
-    siod  : out  STD_LOGIC;
+    siod  : inout  STD_LOGIC;
     sioc  : out  STD_LOGIC
   ); 
 end COMPONENT;
@@ -262,11 +266,9 @@ COMPONENT cam_capture IS
    vsync      : IN    std_logic;
    href       : IN    std_logic;
    data       : IN    std_logic_vector(7 downto 0);
-   reset      : OUT   std_logic;
-   pwdn       : OUT   std_logic;
    -- internal signals
    rstn       : IN    std_logic;
-   power      : IN    std_logic;
+   power      : IN    std_logic;   
    busy       : OUT   std_logic;
    -- fifo interface
    data_w     : OUT std_logic_vector(63 downto 0);
@@ -319,6 +321,7 @@ END COMPONENT;
 
  signal start_sccb : std_logic;
  signal busy_sccb  : std_logic;
+ signal ack_sccb   : std_logic;
  
  signal  vsync_cap : std_logic;
  signal  href_cap  : std_logic;
@@ -382,11 +385,14 @@ END COMPONENT;
     -- sccb interface
     start_sccb => start_sccb,
     busy_sccb  => busy_sccb,
+    ack_sccb   => ack_sccb,
   
     start_addr   => start_address,
     power        => power,
     test_ena     => test_ena_100,
     clock_mux    => clk_mux_100,
+    cam_reset    => reset,
+    cam_pwdn     => pwdn,    
     hp_busy      => hp_busy,
     capture_busy => cap_busy_100,
     curr_addr    => curr_address, 
@@ -470,6 +476,7 @@ END COMPONENT;
     rst_n => rstn_100,-- active in 0
     start => start_sccb,
     busy  => busy_sccb,
+    ack   => ack_sccb,
     -- sccb interface
     siod  => siod,
     sioc  => sioc   
@@ -499,8 +506,6 @@ END COMPONENT;
     vsync    => vsync_cap,
     href     => href_cap,
     data     => data_cap,
-    reset    => reset,
-    pwdn     => pwdn,
     -- internal signals
     rstn       => xrstn_25, 
     power      => power_25,

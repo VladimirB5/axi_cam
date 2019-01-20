@@ -9,8 +9,6 @@ ENTITY cam_capture IS
    vsync      : IN    std_logic;
    href       : IN    std_logic;
    data       : IN    std_logic_vector(7 downto 0);
-   reset      : OUT   std_logic;
-   pwdn       : OUT   std_logic;
    -- internal signals
    rstn       : IN    std_logic;
    power      : IN    std_logic;
@@ -136,8 +134,6 @@ BEGIN
 -------------------------------------------------------------------------------
 -- output assigment
 -------------------------------------------------------------------------------
-RESET     <= not rstn;
-pwdn      <= power;
 data_w    <= data_s;
 we        <= we_s;
 busy      <= busy_s;
