@@ -27,7 +27,7 @@ architecture rtl of sccb_sender is
   
   -- registers
   signal cnt_delay_c, cnt_delay_s : unsigned(7 downto 0); -- register for delay 
-  signal cnt_data_c, cnt_data_s   : unsigned(4 downto 0); -- number of sended bits
+  signal cnt_data_c, cnt_data_s   : unsigned(2 downto 0); -- number of sended bits
   signal cnt_word_c, cnt_word_s   : unsigned(1 downto 0);  -- number of sended words
   signal busy_c, busy_s           : std_logic;
   signal siod_c, siod_s           : std_logic;
@@ -35,7 +35,7 @@ architecture rtl of sccb_sender is
   signal ack_c, ack_s             : std_logic;
 
   -- fsm sccb_sender declaration
-  TYPE t_sccb_sender_state IS (S_IDLE, S_START_SETUP, S_START_HOLD, S_CLK_SETUP, S_CLK, S_CLK_HOLD, S_ACK_SETUP, S_ACK, S_ACK_HOLD, S_STOP_SETUP, S_BUS_FREE);
+  TYPE t_sccb_sender_state IS (S_IDLE, S_START_SETUP, S_START_HOLD, S_CLK_SETUP, S_CLK, S_CLK_HOLD, S_ACK_SETUP, S_ACK, S_ACK_HOLD, S_STOP_DEL, S_STOP_SETUP, S_BUS_FREE);
   SIGNAL fsm_sccb_sender_c, fsm_sccb_sender_s :t_sccb_sender_state;  
 begin
 -------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ begin
     IF rst_n = '0' THEN
       fsm_sccb_sender_s <= S_IDLE;
       cnt_delay_s <= (others => '0');
-      cnt_data_s  <= (others => '0');
+      cnt_data_s  <= (others => '1'); -- sending msb to lsb 7 -> 0
       cnt_word_s  <= (others => '0');
       siod_s      <= '1';
       sioc_s      <= '1';
@@ -75,9 +75,9 @@ begin
     ack_c             <= ack_s;
     CASE fsm_sccb_sender_s IS
       WHEN S_IDLE =>
-        cnt_delay_c    <= (others => '0');
-        cnt_data_c <= (others => '0');
-        cnt_word_c <= (others => '0');
+        cnt_delay_c <= (others => '0');
+        cnt_data_c  <= (others => '1');
+        cnt_word_c  <= (others => '0');
         IF start = '1' THEN
           fsm_sccb_sender_c <= S_START_SETUP;
         END IF;
@@ -117,11 +117,11 @@ begin
       WHEN S_CLK_HOLD =>
         IF cnt_delay_s =  c_data_setup_hold-1 THEN
           cnt_delay_c <= (others => '0');
-          IF cnt_data_s = 7 THEN
-            cnt_data_c <= (others => '0');
+          IF cnt_data_s = 0 THEN
+            cnt_data_c <= (others => '1');
             fsm_sccb_sender_c <= S_ACK_SETUP;
           ELSE 
-            cnt_data_c <= cnt_data_s + 1;
+            cnt_data_c <= cnt_data_s - 1;
             fsm_sccb_sender_c <= S_CLK_SETUP;            
           END IF;
         ELSE 
@@ -150,13 +150,21 @@ begin
         IF cnt_delay_s =  c_data_setup_hold-1 THEN
           cnt_delay_c <= (others => '0');
           IF cnt_word_s = 3 THEN
-            fsm_sccb_sender_c <= S_STOP_SETUP;
+            fsm_sccb_sender_c <= S_STOP_DEL;
           ELSE 
             fsm_sccb_sender_c <= S_CLK_SETUP;            
           END IF;
         ELSE 
           cnt_delay_c <= cnt_delay_c + 1;
         END IF;        
+        
+      WHEN S_STOP_DEL => -- this state not defined in spec, hold both data and clock before stop  
+        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+          cnt_delay_c <= (others => '0');
+          fsm_sccb_sender_c <= S_STOP_SETUP;
+        ELSE 
+          cnt_delay_c <= cnt_delay_s + 1;
+        END IF;       
       
       WHEN S_STOP_SETUP =>
         IF cnt_delay_s =  c_data_setup_hold-1 THEN
@@ -202,7 +210,10 @@ begin
       WHEN S_ACK =>
         sioc_c <= '1';
       WHEN S_ACK_HOLD =>
-        
+      
+      WHEN S_STOP_DEL =>
+        sioc_c <= '0';
+        siod_c <= '0';
       WHEN S_STOP_SETUP =>
         sioc_c <= '1';
         siod_c <= '0';
@@ -224,7 +235,7 @@ begin
        mux_a_out := data(7 downto 0);
    END CASE;
    
-   mux_data <= mux_a_out(to_integer(cnt_data_s));   
+   mux_data <= mux_a_out(to_integer(cnt_data_s));   --sending msb to lsb 7 -> 0
  END PROCESS mux;
 -------------------------------------------------------------------------------
 -- output assigment
