@@ -67,11 +67,12 @@ begin
 -------------------------------------------------------------------------------
 -- combinational parts 
 -------------------------------------------------------------------------------
- next_state_test_logic : PROCESS (fsm_sccb_sender_s, cnt_delay_s, cnt_data_s, start, cnt_word_s, ack_s)
+ next_state_test_logic : PROCESS (fsm_sccb_sender_s, cnt_delay_s, cnt_data_s, start, cnt_word_s, ack_s, siod)
  BEGIN
     fsm_sccb_sender_c <= fsm_sccb_sender_s;
-    cnt_delay_c       <= cnt_delay_c;
+    cnt_delay_c       <= cnt_delay_s;
     cnt_data_c        <= cnt_data_s;
+    cnt_word_c        <= cnt_word_s;        
     ack_c             <= ack_s;
     CASE fsm_sccb_sender_s IS
       WHEN S_IDLE =>
@@ -103,7 +104,7 @@ begin
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_CLK;
         ELSE 
-          cnt_delay_c <= cnt_delay_c + 1;
+          cnt_delay_c <= cnt_delay_s + 1;
         END IF;       
       
       WHEN S_CLK =>
@@ -155,7 +156,7 @@ begin
             fsm_sccb_sender_c <= S_CLK_SETUP;            
           END IF;
         ELSE 
-          cnt_delay_c <= cnt_delay_c + 1;
+          cnt_delay_c <= cnt_delay_s + 1;
         END IF;        
         
       WHEN S_STOP_DEL => -- this state not defined in spec, hold both data and clock before stop  
@@ -171,7 +172,7 @@ begin
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_BUS_FREE;
         ELSE 
-          cnt_delay_c <= cnt_delay_c + 1;
+          cnt_delay_c <= cnt_delay_s + 1;
         END IF;         
       
       WHEN S_BUS_FREE =>
@@ -179,7 +180,7 @@ begin
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_IDLE;
         ELSE 
-          cnt_delay_c <= cnt_delay_c + 1;
+          cnt_delay_c <= cnt_delay_s + 1;
         END IF;         
     END CASE;        
  END PROCESS next_state_test_logic;

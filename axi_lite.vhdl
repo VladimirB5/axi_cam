@@ -187,7 +187,7 @@ ARCHITECTURE rtl OF axi_lite IS
  -- output read mux
  hp_busy_c <= hp_busy;
  output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, hp_busy_s, new_frm, new_frame_s, power_s, stop_s, addr_lock_s,
-                            start_addr_s, curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s)
+                            start_addr_s, curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb)
  BEGIN
     rdata_c <= (others => '0');
     rresp_c <= OKAY;
