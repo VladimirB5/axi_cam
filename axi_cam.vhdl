@@ -3,6 +3,9 @@ USE IEEE.std_logic_1164.ALL;
 --use IEEE.numeric_std.all;
 
 entity axi_cam IS
+  generic (
+    G_MUX : boolean -- if internal clock can be switched to second clock domain
+  );
   port (
     -- clocks and resets
   clk_100              : IN std_logic;
@@ -278,6 +281,9 @@ COMPONENT cam_capture IS
 END COMPONENT;
 
 COMPONENT clk_mux IS
+  generic (
+    G_MUX : boolean -- if mux is use
+  );
   port (
     clk    : IN std_logic;  -- input clk from clk source
     pclk   : IN std_logic;  -- input clk from camera
@@ -342,9 +348,9 @@ END COMPONENT;
  signal  num_frames       : std_logic_vector(7 downto 0);
  signal  new_frame        : std_logic;
  signal  hp_busy          : std_logic;
+ signal  xclk_mux         : std_logic;   
  
  -- signal throught clock domain
- signal  clk_mux_100, clk_mux_25               : std_logic;  
  signal  test_ena_100, test_ena_25             : std_logic;  
  signal  power, power_sf, power_25             : std_logic;  
  signal  cap_busy_25, cap_busy_100             : std_logic;
@@ -390,7 +396,7 @@ END COMPONENT;
     start_addr   => start_address,
     power        => power,
     test_ena     => test_ena_100,
-    clock_mux    => clk_mux_100,
+    clock_mux    => xclk_mux,
     cam_reset    => reset,
     cam_pwdn     => pwdn,    
     hp_busy      => hp_busy,
@@ -516,10 +522,14 @@ END COMPONENT;
     full_w     => full_w
   ); 
   
-  i_clk_mux : clk_mux  PORT MAP (
+  i_clk_mux : clk_mux
+  generic map (
+    G_MUX => G_MUX -- if mux is use
+  )
+  PORT MAP (
     clk    =>  clk_25, -- input clk from clk source
     pclk   =>  pclk,   -- input clk from camera
-    mux    =>  clk_mux_25,
+    mux    =>  xclk_mux,
     xclk   =>  xclk,   -- output to camera
     clk_25 =>  xclk_25 -- output to 25mhz clock domain
     
@@ -554,15 +564,6 @@ END COMPONENT;
      res_n    => rstn_100,
      data_in  => cap_busy_25,
      data_out => cap_busy_100
-  );  
-  
-  ------------------------------------------------------------------------------- 
-  i_clock_mux : synchronizer
-  port map (
-     clk      => xclk_25,
-     res_n    => xrstn_25, 
-     data_in  => clk_mux_100,
-     data_out => clk_mux_25
   );  
   
   ------------------------------------------------------------------------------- 

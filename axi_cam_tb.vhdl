@@ -8,6 +8,9 @@ END ENTITY axi_cam_tb;
 ARCHITECTURE behavior OF axi_cam_tb IS
 -------------------------------------------------------------------------------
 COMPONENT axi_cam IS
+  generic (
+    G_MUX : boolean -- if internal clock can be switched to second clock domain
+  );
   port (
     -- clocks and resets
   clk_100              : IN std_logic;
@@ -199,7 +202,11 @@ END COMPONENT;
    signal read_start : std_logic := '0';   
 begin
 
-   i_axi_cam: axi_cam PORT MAP (
+   i_axi_cam: axi_cam 
+   generic map (
+     G_MUX => true 
+   )
+   PORT MAP (
      -- clocks and resets
      CLK_100 => CLK_100,
      rstn_100  => rst_n,

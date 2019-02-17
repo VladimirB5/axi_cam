@@ -32,7 +32,7 @@ end COMPONENT;
 
 COMPONENT ov7670_reg_rom IS
   port (
-    addr: IN std_logic_vector(1 downto 0);
+    addr: IN std_logic_vector(7 downto 0);
     dout: out std_logic_vector(15 downto 0)
   );
 END COMPONENT;
@@ -52,8 +52,8 @@ signal busy_c  : std_logic;
 signal busy_s  : std_logic;
 signal send_c  : std_logic; -- start sending via sccb
 signal send_s  : std_logic;
-signal addr_c  : unsigned (1 downto 0);
-signal addr_s  : unsigned (1 downto 0);
+signal addr_c  : unsigned (7 downto 0);
+signal addr_s  : unsigned (7 downto 0);
 
 begin
  data_send(23 downto 16) <= camera_address;
@@ -106,7 +106,7 @@ next_state_logic : PROCESS (fsm_s, busy_int, start, addr_s)
         end if;
       when send_stop  => 
         if busy_int = '0' then
-          if (addr_s < 3) then
+          if (addr_s < 74) then
             fsm_c <= read_rom;
           else  
             fsm_c <= idle;
