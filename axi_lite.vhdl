@@ -48,6 +48,7 @@ ENTITY axi_lite IS
   clock_mux    : OUT std_logic;
   cam_reset    : OUT std_logic;
   cam_pwdn     : OUT std_logic;
+  sccb_data    : OUT std_logic_vector(15 downto 0);
   hp_busy      : IN  std_logic; -- axi HP busy
   capture_busy : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
@@ -77,6 +78,7 @@ ARCHITECTURE rtl OF axi_lite IS
   signal hp_busy_c, hp_busy_s         : std_logic; -- latched value busy_hp
   signal cam_reset_c, cam_reset_s     : std_logic; 
   signal cam_pwdn_c, cam_pwdn_s       : std_logic;
+  signal sccb_data_c, sccb_data_s     : std_logic_vector(15 downto 0);
   
   -- fsm read declaration
   TYPE t_read_state IS (R_IDLE, R_AREADY, R_VDATA);
@@ -115,6 +117,7 @@ ARCHITECTURE rtl OF axi_lite IS
       hp_busy_s    <= '0';
       cam_reset_s  <= '1';
       cam_pwdn_s   <= '1';
+      sccb_data_s  <= (others => '0');
       fsm_read_s   <= R_IDLE; -- init state after reset
       fsm_write_s  <= W_IDLE;
     ELSIF ACLK = '1' AND ACLK'EVENT THEN
@@ -137,6 +140,7 @@ ARCHITECTURE rtl OF axi_lite IS
       hp_busy_s    <= hp_busy_c;
       cam_reset_s  <= cam_reset_c;
       cam_pwdn_s   <= cam_pwdn_c;
+      sccb_data_s  <= sccb_data_c;
       fsm_read_s   <= fsm_read_c; -- next fsm state
       fsm_write_s  <= fsm_write_c;
     END IF;       
@@ -187,7 +191,7 @@ ARCHITECTURE rtl OF axi_lite IS
  -- output read mux
  hp_busy_c <= hp_busy;
  output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, hp_busy_s, new_frm, new_frame_s, power_s, stop_s, addr_lock_s,
-                            start_addr_s, curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb)
+                            start_addr_s, curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s)
  BEGIN
     rdata_c <= (others => '0');
     rresp_c <= OKAY;
@@ -222,12 +226,15 @@ ARCHITECTURE rtl OF axi_lite IS
           rdata_c <= curr_addr;
         WHEN "011" =>   
           rdata_c(7 downto 5)   <= (others => '0');
-          rdata_c(5)            <= cam_pwdn_s;
-          rdata_c(4)            <= cam_reset_s;
-          rdata_c(3)            <= ack_sccb;
-          rdata_c(2)            <= busy_sccb;
+          rdata_c(3)            <= cam_pwdn_s;
+          rdata_c(2)            <= cam_reset_s;
           rdata_c(1)            <= clock_mux_s;
           rdata_c(0)            <= test_ena_s;
+        WHEN "100" =>
+          rdata_c(15 downto 0)  <= sccb_data_s;
+        WHEN "101" =>
+          rdata_c(1)            <= ack_sccb;
+          rdata_c(0)            <= busy_sccb;
         WHEN others =>
           rresp_c <= SLVERR;
       END CASE;
@@ -259,20 +266,21 @@ ARCHITECTURE rtl OF axi_lite IS
     END CASE;
  END PROCESS next_state_write_logic;
   
- output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, power_s, start_addr_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb, stop_s, new_frm, cam_reset_s, cam_pwdn_s)
+ output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, power_s, start_addr_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb, stop_s, new_frm, cam_reset_s, cam_pwdn_s, sccb_data_s)
  BEGIN
-    awready_c <= '0';
-    wready_c  <= '0';
-    bvalid_c  <= '0';
-    bresp_c   <= bresp_s;
-    power_c   <= power_s;
+    awready_c    <= '0';
+    wready_c     <= '0';
+    bvalid_c     <= '0';
+    bresp_c      <= bresp_s;
+    power_c      <= power_s;
     start_addr_c <= start_addr_s; 
     start_sccb_c <= start_sccb_s;
     test_ena_c   <= test_ena_s;
     clock_mux_c  <= clock_mux_s;
     stop_c       <= stop_s;
     cam_reset_c  <= cam_reset_s;
-    cam_pwdn_c   <= cam_pwdn_s;    
+    cam_pwdn_c   <= cam_pwdn_s;   
+    sccb_data_c  <= sccb_data_s;
     CASE fsm_write_c IS
       WHEN W_IDLE => 
         bresp_c   <= OKAY;
@@ -292,11 +300,14 @@ ARCHITECTURE rtl OF axi_lite IS
           WHEN "011" =>           
             test_ena_c  <= WDATA(0);      
             clock_mux_c <= WDATA(1);
+            cam_reset_c <= WDATA(2);
+            cam_pwdn_c  <= WDATA(3);
+          WHEN "100" =>
+            sccb_data_c <= WDATA(15 downto 0);
+          WHEN "101" =>
             IF busy_sccb = '0' THEN
-              start_sccb_c <= WDATA(2);
-            END IF;
-            cam_reset_c <= WDATA(4);
-            cam_pwdn_c  <= WDATA(5);
+              start_sccb_c <= WDATA(0);
+            END IF;            
           WHEN others =>
             bresp_c <= SLVERR;
         END CASE;      
@@ -336,5 +347,6 @@ ARCHITECTURE rtl OF axi_lite IS
   clock_mux   <= clock_mux_s;
   cam_reset   <= cam_reset_s;
   cam_pwdn    <= cam_pwdn_s;
+  sccb_data   <= sccb_data_s;
 END ARCHITECTURE RTL;
  

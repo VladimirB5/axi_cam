@@ -3,8 +3,8 @@ USE IEEE.std_logic_1164.ALL;
 use IEEE.numeric_std.all;
 
 -- next two line uncoment in vivado
---Library UNISIM;
---use UNISIM.vcomponents.all;
+Library UNISIM;
+use UNISIM.vcomponents.all;
 
 
 ENTITY clk_mux IS
@@ -32,13 +32,14 @@ BEGIN
    --               Artix-7
    -- Xilinx HDL Language Template, version 2018.2
    
+   -- BUFGMUX uncoment in vivado
    BUFGMUX_CTRL_inst : BUFGMUX_CTRL
    port map (
      O => clk_25,   -- 1-bit output: Clock output
      I0 => clk, -- 1-bit input: Clock input (S=0)
      I1 => pclk, -- 1-bit input: Clock input (S=1)
      S => mux    -- 1-bit input: Clock select
-   );
+  );
 
    -- End of BUFGMUX_CTRL_inst instantiation
  end generate mux_gen_0;

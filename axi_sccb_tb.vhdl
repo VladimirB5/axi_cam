@@ -314,18 +314,23 @@ begin
      rst_n <= '1';
      
      wait for 50 us;
-     address <= x"0000000C";
+     address <= x"00000010";
      read_start <= NOT read_start;       
      
      wait for 50 us;
-     address <= x"0000000C";
-     data    <= x"00000004";
+     address <= x"00000010";
+     data    <= x"00001280";
      write_start <= NOT write_start;  
+     
+     wait for 50 us;
+     address <= x"00000014";
+     data    <= x"00000001";
+     write_start <= NOT write_start;       
      
      wait for 400 us;
      
      wait for 10 us;
-     address <= x"0000000C";
+     address <= x"00000014";
      read_start <= NOT read_start;     
      
      wait for 10 us;

@@ -22,8 +22,7 @@ sccb: elab
 	ghdl -e --std=08 axi_sccb_tb
 	ghdl -r --std=08 axi_sccb_tb --wave=axi_sccb_tb.ghw
 
-elab: ov7670_reg_rom.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl check
-	ghdl -a --std=08 ov7670_reg_rom.vhdl
+elab: sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl check
 	ghdl -a --std=08 sccb_sender.vhdl
 	ghdl -a --std=08 sccb.vhdl
 	ghdl -a --std=08 axi_lite.vhdl
@@ -42,8 +41,7 @@ elab: ov7670_reg_rom.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vh
 	ghdl -a --std=08 axi_cam_tb.vhdl
 	ghdl -a --std=08 axi_sccb_tb.vhdl
 
-check: ov7670_reg_rom.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl
-	ghdl -s --std=08 ov7670_reg_rom.vhdl
+check: sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl
 	ghdl -s --std=08 sccb_sender.vhdl
 	ghdl -s --std=08 sccb.vhdl
 	ghdl -s --std=08 axi_lite.vhdl

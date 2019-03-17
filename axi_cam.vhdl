@@ -148,6 +148,7 @@ COMPONENT axi_lite IS
   clock_mux    : OUT std_logic;
   cam_reset    : OUT std_logic;
   cam_pwdn     : OUT std_logic;
+  sccb_data    : OUT std_logic_vector(15 downto 0);
   hp_busy      : IN  std_logic; -- axi HP busy
   capture_busy : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
@@ -231,14 +232,15 @@ end COMPONENT;
 
 COMPONENT sccb IS
   port (
-    clk   : IN std_logic; -- 100Mhz clk
-    rst_n : IN std_logic; -- active in 0
-    start : IN std_logic;
-    busy  : OUT std_logic;
-    ack   : OUT std_logic;    
+    clk       : IN std_logic; -- 100Mhz clk
+    rst_n     : IN std_logic; -- active in 0
+    start     : IN std_logic;
+    sccb_data : IN std_logic_vector(15 downto 0); -- data to be send via sccb
+    busy      : OUT std_logic;
+    ack       : OUT std_logic;
     -- sccb interface
-    siod  : inout  STD_LOGIC;
-    sioc  : out  STD_LOGIC
+    siod     : inout  STD_LOGIC;
+    sioc     : out  STD_LOGIC
   ); 
 end COMPONENT;
 
@@ -346,6 +348,7 @@ END COMPONENT;
  signal  start_address    : std_logic_vector(31 downto 0);
  signal  curr_address     : std_logic_vector(31 downto 0); 
  signal  num_frames       : std_logic_vector(7 downto 0);
+ signal  sccb_data        : std_logic_vector(15 downto 0);
  signal  new_frame        : std_logic;
  signal  hp_busy          : std_logic;
  signal  xclk_mux         : std_logic;   
@@ -399,6 +402,7 @@ END COMPONENT;
     clock_mux    => xclk_mux,
     cam_reset    => reset,
     cam_pwdn     => pwdn,    
+    sccb_data    => sccb_data,
     hp_busy      => hp_busy,
     capture_busy => cap_busy_100,
     curr_addr    => curr_address, 
@@ -478,16 +482,17 @@ END COMPONENT;
   ); 
   
   i_sccb : sccb PORT MAP (
-    clk   => clk_100, -- 100Mhz clk
-    rst_n => rstn_100,-- active in 0
-    start => start_sccb,
-    busy  => busy_sccb,
-    ack   => ack_sccb,
+    clk       => clk_100, -- 100Mhz clk
+    rst_n     => rstn_100,-- active in 0
+    start     => start_sccb,
+    sccb_data => sccb_data,
+    busy      => busy_sccb,
+    ack       => ack_sccb,
     -- sccb interface
-    siod  => siod,
-    sioc  => sioc   
+    siod      => siod,
+    sioc      => sioc   
   );
-  
+     
   i_fifo : fifo  PORT MAP (
     -- 100 mhz port
     clk_100  => clk_100, -- 100Mhz clk
