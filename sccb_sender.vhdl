@@ -9,8 +9,9 @@ entity sccb_sender is
            start : in std_logic;
            busy  : out std_logic;
            ack   : out std_logic;
-           siod  : inout  std_logic;
-           sioc  : out  std_logic
+           siod_r: in std_logic;
+           siod_w: out std_logic;
+           sioc  : out std_logic
         );
 end entity sccb_sender;
 
@@ -67,7 +68,7 @@ begin
 -------------------------------------------------------------------------------
 -- combinational parts 
 -------------------------------------------------------------------------------
- next_state_test_logic : PROCESS (fsm_sccb_sender_s, cnt_delay_s, cnt_data_s, start, cnt_word_s, ack_s, siod)
+ next_state_test_logic : PROCESS (fsm_sccb_sender_s, cnt_delay_s, cnt_data_s, start, cnt_word_s, ack_s, siod_r)
  BEGIN
     fsm_sccb_sender_c <= fsm_sccb_sender_s;
     cnt_delay_c       <= cnt_delay_s;
@@ -134,7 +135,7 @@ begin
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_ACK;
           cnt_word_c <= cnt_word_s + 1;
-          ack_c <= ack_s OR siod;
+          ack_c <= ack_s OR siod_r;
         ELSE 
           cnt_delay_c <= cnt_delay_s + 1;
         END IF;        
@@ -241,10 +242,10 @@ begin
 -------------------------------------------------------------------------------
 -- output assigment
 ------------------------------------------------------------------------------- 
-busy <= busy_s;
-sioc <= '0' when sioc_s = '0' else 'Z'; 
-siod <= '0' when siod_s = '0' else 'Z'; 
-ack  <= ack_s;
+busy   <= busy_s;
+sioc   <= sioc_s; 
+siod_w <= siod_s; 
+ack    <= ack_s;
 
 end rtl;
 

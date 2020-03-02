@@ -18,7 +18,8 @@ COMPONENT axi_cam IS
   
   clk_25               : IN std_logic;
   
-  -- AXI lite 
+  -- AXI lite
+  AXI_L_ACLK           : IN std_logic;  
   -- write adress channel
   AXI_L_AWVALID        : IN std_logic;
   AXI_L_AWREADY        : OUT std_logic;
@@ -45,6 +46,7 @@ COMPONENT axi_cam IS
   AXI_L_RRESP          : OUT std_logic_vector(1 downto 0);    
     
   -- AXI HP
+  AXI_HP_ACLK          : IN std_logic;   
   -- write adress channel
   AXI_HP_AWADDR        : OUT std_logic_vector(31 downto 0);
   AXI_HP_AWVALID       : OUT std_logic;
@@ -213,7 +215,8 @@ begin
      
      clk_25  => clk_25,
 
-     -- axi-lite 
+     -- axi-lite
+     AXI_L_ACLK => '0',
      -- write adress channel
      AXI_L_AWVALID => AXI_L_AWVALID,
      AXI_L_AWREADY => AXI_L_AWREADY,
@@ -240,6 +243,7 @@ begin
      AXI_L_RRESP   => AXI_L_RRESP, 
 
      -- axi hp
+     AXI_HP_ACLK     => '0',
      -- write adress channel
      AXI_HP_AWADDR   => AXI_HP_AWADDR,
      AXI_HP_AWVALID  => AXI_HP_AWVALID,
@@ -327,9 +331,17 @@ begin
      data    <= x"00000001";
      write_start <= NOT write_start;       
      
-     wait for 400 us;
+     wait for 100 us;
+     address <= x"00000014";
+     data    <= x"00000001";
+     write_start <= NOT write_start;         
      
-     wait for 10 us;
+     wait for 100 us;
+     address <= x"00000014";
+     data    <= x"00000001";
+     write_start <= NOT write_start;         
+     
+     wait for 100 us;
      address <= x"00000014";
      read_start <= NOT read_start;     
      

@@ -11,8 +11,9 @@ ENTITY sccb IS
     busy      : OUT std_logic;
     ack       : OUT std_logic;
     -- sccb interface
-    siod     : inout  STD_LOGIC;
-    sioc     : out  STD_LOGIC
+    siod_r    : in std_logic;
+    siod_w    : out std_logic;
+    sioc      : out std_logic
   ); 
 END ENTITY sccb;
 
@@ -26,8 +27,9 @@ COMPONENT sccb_sender IS
            start : in std_logic;
            busy  : out std_logic;
            ack   : out std_logic;
-           siod  : inout  std_logic;
-           sioc  : out  std_logic
+           siod_r: in std_logic;
+           siod_w: out std_logic;
+           sioc  : out std_logic
         );
 end COMPONENT;
 
@@ -47,7 +49,8 @@ begin
     start => start,
     busy  => busy,
     ack   => ack,
-    siod  => siod,
+    siod_r=> siod_r,
+    siod_w=> siod_w,
     sioc  => sioc
  ); 
  

@@ -14,6 +14,7 @@ entity axi_cam IS
   clk_25               : IN std_logic;
   
   -- AXI lite 
+  AXI_L_ACLK           : IN std_logic;  
   -- write adress channel
   AXI_L_AWVALID        : IN std_logic;
   AXI_L_AWREADY        : OUT std_logic;
@@ -40,6 +41,7 @@ entity axi_cam IS
   AXI_L_RRESP          : OUT std_logic_vector(1 downto 0);    
     
   -- AXI HP
+  AXI_HP_ACLK          : IN std_logic;
   -- write adress channel
   AXI_HP_AWADDR        : OUT std_logic_vector(31 downto 0);
   AXI_HP_AWVALID       : OUT std_logic;
@@ -239,8 +241,9 @@ COMPONENT sccb IS
     busy      : OUT std_logic;
     ack       : OUT std_logic;
     -- sccb interface
-    siod     : inout  STD_LOGIC;
-    sioc     : out  STD_LOGIC
+    siod_r    : in std_logic;
+    siod_w    : out std_logic;
+    sioc      : out std_logic
   ); 
 end COMPONENT;
 
@@ -327,6 +330,19 @@ COMPONENT synchronizer is
          );
 END COMPONENT;
 
+COMPONENT bi_dir is
+  port(T     : in    std_logic;
+       I     : in    std_logic;
+       O_NEW : out   std_logic;
+       IO    : inout std_logic);
+END COMPONENT;
+
+COMPONENT tri_out is
+  port(T    : in  std_logic;
+       I    : in  std_logic;
+       O    : out std_logic);
+END COMPONENT;
+
  signal start_sccb : std_logic;
  signal busy_sccb  : std_logic;
  signal ack_sccb   : std_logic;
@@ -360,6 +376,10 @@ END COMPONENT;
  
  signal  xclk_25   : std_logic; -- clock from camera used for capturing
  signal  xrstn_25  : std_logic; -- reset synchronized to xclk_25
+ 
+ signal  siod_w    : std_logic;
+ signal  siod_r    : std_logic;
+ signal  sioc_i    : std_logic; -- interconnecte signal
   BEGIN
   
   i_axi_lite: axi_lite PORT MAP (
@@ -489,8 +509,9 @@ END COMPONENT;
     busy      => busy_sccb,
     ack       => ack_sccb,
     -- sccb interface
-    siod      => siod,
-    sioc      => sioc   
+    siod_r    =>  siod_r, -- in
+    siod_w    =>  siod_w, -- out
+    sioc      =>  sioc_i  -- out   
   );
      
   i_fifo : fifo  PORT MAP (
@@ -554,6 +575,21 @@ END COMPONENT;
    -- control interface
    test_ena    => test_ena_25
   ); 
+  
+  i_bi_dir : bi_dir
+  port map (
+       T     => siod_w,
+       I     => '0',
+       O_NEW => siod_r,
+       IO    => siod
+  ); 
+  
+  i_tri_out : tri_out
+  port map (
+       T    => sioc_i,
+       I    => '0',
+       O    => sioc
+  );  
   
   -------------------------------------------------------------------------------
   i_reset_xclk25 : reset_sync port map (

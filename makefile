@@ -22,7 +22,9 @@ sccb: elab
 	ghdl -e --std=08 axi_sccb_tb
 	ghdl -r --std=08 axi_sccb_tb --wave=axi_sccb_tb.ghw
 
-elab: sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl check
+elab: tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl check
+	ghdl -a --std=08 tri_out.vhdl
+	ghdl -a --std=08 bi_dir.vhdl
 	ghdl -a --std=08 sccb_sender.vhdl
 	ghdl -a --std=08 sccb.vhdl
 	ghdl -a --std=08 axi_lite.vhdl
@@ -35,13 +37,15 @@ elab: sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RA
 	ghdl -a --std=08 synchronizer_vector.vhdl
 	ghdl -a --std=08 cam_capture.vhdl
 	ghdl -a --std=08 cam_test.vhdl
-	ghdl -a --std=08 clk_mux.vhdl
+	ghdl -a --std=08 no_synth/clk_mux.vhdl
 	ghdl -a --std=08 axi_hp.vhdl
 	ghdl -a --std=08 axi_cam.vhdl
 	ghdl -a --std=08 axi_cam_tb.vhdl
 	ghdl -a --std=08 axi_sccb_tb.vhdl
 
-check: sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl
+check: tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl
+	ghdl -s --std=08 tri_out.vhdl
+	ghdl -s --std=08 bi_dir.vhdl
 	ghdl -s --std=08 sccb_sender.vhdl
 	ghdl -s --std=08 sccb.vhdl
 	ghdl -s --std=08 axi_lite.vhdl
@@ -54,7 +58,7 @@ check: sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl R
 	ghdl -s --std=08 synchronizer_vector.vhdl
 	ghdl -s --std=08 cam_capture.vhdl
 	ghdl -s --std=08 cam_test.vhdl
-	ghdl -s --std=08 clk_mux.vhdl
+	ghdl -s --std=08 no_synth/clk_mux.vhdl
 	ghdl -s --std=08 axi_hp.vhdl
 	ghdl -s --std=08 axi_cam.vhdl
 	ghdl -s --std=08 axi_cam_tb.vhdl

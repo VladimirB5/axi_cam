@@ -1,9 +1,10 @@
+-------------------------------------------------------------------------------
+-- model for used with GHDL
+-- not used for synthesys
+-------------------------------------------------------------------------------
 LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 use IEEE.numeric_std.all;
-
-Library UNISIM;
-use UNISIM.vcomponents.all;
 
 
 ENTITY clk_mux IS
@@ -20,30 +21,22 @@ ENTITY clk_mux IS
   ); 
 END ENTITY clk_mux; 
 
-ARCHITECTURE rtl OF clk_mux IS
+ARCHITECTURE behavior OF clk_mux IS
 
 BEGIN
 
  xclk   <= clk;
  
  mux_gen_0: if G_MUX = true generate
-   -- BUFGMUX_CTRL: 2-to-1 Global Clock MUX Buffer
-   --               Artix-7
-   -- Xilinx HDL Language Template, version 2018.2
-   
-   BUFGMUX_CTRL_inst : BUFGMUX_CTRL
-   port map (
-     O => clk_25,   -- 1-bit output: Clock output
-     I0 => clk, -- 1-bit input: Clock input (S=0)
-     I1 => pclk, -- 1-bit input: Clock input (S=1)
-     S => mux    -- 1-bit input: Clock select
-   );
-   
-   -- End of BUFGMUX_CTRL_inst instantiation
+
+   clk_25 <= clk when mux = '0' ELSE 
+             pclk;
+             
  end generate mux_gen_0;
  
  mux_gen_1: if G_MUX = false generate
   clk_25 <= pclk;
  end generate mux_gen_1;
  
-END ARCHITECTURE rtl;
+END ARCHITECTURE behavior;
+ 
