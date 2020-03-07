@@ -331,17 +331,17 @@ begin
      data    <= x"00000001";
      write_start <= NOT write_start;       
      
-     wait for 100 us;
+     wait for 300 us;
      address <= x"00000014";
      data    <= x"00000001";
      write_start <= NOT write_start;         
      
-     wait for 100 us;
+     wait for 300 us;
      address <= x"00000014";
      data    <= x"00000001";
      write_start <= NOT write_start;         
      
-     wait for 100 us;
+     wait for 300 us;
      address <= x"00000014";
      read_start <= NOT read_start;     
      

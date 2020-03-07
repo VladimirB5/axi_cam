@@ -40,7 +40,7 @@ signal data_send : std_logic_vector(23 downto 0);
 
 begin
  data_send(23 downto 16) <= write_id; -- prepare data to be sedn via sccb
- data_send(15 downto 0)  <= (others => '0');
+ data_send(15 downto 0)  <= sccb_data;
 
  i_sccb_sender: sccb_sender PORT MAP (
     clk   => clk,

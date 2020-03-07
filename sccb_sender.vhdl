@@ -18,16 +18,16 @@ end entity sccb_sender;
 architecture rtl of sccb_sender is
   -- constants 
   -- constant for 100 mhz clock
-  constant c_start_setup_hold: unsigned(7 downto 0) := X"64"; -- 100
-  constant c_data_setup_hold : unsigned(7 downto 0) := X"4b"; --75
-  constant c_clk_high        : unsigned(7 downto 0) := X"64"; --100
-  constant c_bus_free        : unsigned(7 downto 0) := X"96"; --150
+  constant c_start_setup_hold: unsigned(8 downto 0) := "011111111"; --255 2.5us
+  constant c_data_setup_hold : unsigned(8 downto 0) := "011111111"; --255 2.5us
+  constant c_clk_high        : unsigned(8 downto 0) := "111111111"; --511 5us
+  constant c_bus_free        : unsigned(8 downto 0) := "111111111"; --511 5us
   
   --signals
   signal mux_data : std_logic;
   
   -- registers
-  signal cnt_delay_c, cnt_delay_s : unsigned(7 downto 0); -- register for delay 
+  signal cnt_delay_c, cnt_delay_s : unsigned(8 downto 0); -- register for delay 
   signal cnt_data_c, cnt_data_s   : unsigned(2 downto 0); -- number of sended bits
   signal cnt_word_c, cnt_word_s   : unsigned(1 downto 0);  -- number of sended words
   signal busy_c, busy_s           : std_logic;
@@ -80,12 +80,13 @@ begin
         cnt_delay_c <= (others => '0');
         cnt_data_c  <= (others => '1');
         cnt_word_c  <= (others => '0');
+        ack_c       <= '0'; -- clear ack before send transaction
         IF start = '1' THEN
           fsm_sccb_sender_c <= S_START_SETUP;
         END IF;
    
       WHEN S_START_SETUP =>
-        IF cnt_delay_s = c_start_setup_hold-1 THEN
+        IF cnt_delay_s = c_start_setup_hold THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_START_HOLD;
         ELSE 
@@ -93,7 +94,7 @@ begin
         END IF;
         
       WHEN S_START_HOLD =>
-        IF cnt_delay_s =  c_start_setup_hold-1 THEN
+        IF cnt_delay_s = c_start_setup_hold THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_CLK_SETUP;
         ELSE 
@@ -101,7 +102,7 @@ begin
         END IF;      
       
       WHEN S_CLK_SETUP =>
-        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+        IF cnt_delay_s = c_data_setup_hold THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_CLK;
         ELSE 
@@ -109,7 +110,7 @@ begin
         END IF;       
       
       WHEN S_CLK =>
-        IF cnt_delay_s =  c_clk_high-1 THEN
+        IF cnt_delay_s = c_clk_high THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_CLK_HOLD;
         ELSE 
@@ -117,7 +118,7 @@ begin
         END IF;  
       
       WHEN S_CLK_HOLD =>
-        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+        IF cnt_delay_s = c_data_setup_hold THEN
           cnt_delay_c <= (others => '0');
           IF cnt_data_s = 0 THEN
             cnt_data_c <= (others => '1');
@@ -131,17 +132,17 @@ begin
         END IF;      
       
       WHEN S_ACK_SETUP =>
-        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+        IF cnt_delay_s = c_data_setup_hold THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_ACK;
           cnt_word_c <= cnt_word_s + 1;
-          ack_c <= ack_s OR siod_r;
+          ack_c <= ack_s OR siod_r; -- if in transaction not ack is set it will be saved
         ELSE 
           cnt_delay_c <= cnt_delay_s + 1;
         END IF;        
       
       WHEN S_ACK =>
-        IF cnt_delay_s =  c_clk_high-1 THEN
+        IF cnt_delay_s = c_clk_high THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_ACK_HOLD;
         ELSE 
@@ -149,7 +150,7 @@ begin
         END IF;       
       
       WHEN S_ACK_HOLD =>
-        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+        IF cnt_delay_s = c_data_setup_hold THEN
           cnt_delay_c <= (others => '0');
           IF cnt_word_s = 3 THEN
             fsm_sccb_sender_c <= S_STOP_DEL;
@@ -161,7 +162,7 @@ begin
         END IF;        
         
       WHEN S_STOP_DEL => -- this state not defined in spec, hold both data and clock before stop  
-        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+        IF cnt_delay_s = c_data_setup_hold THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_STOP_SETUP;
         ELSE 
@@ -169,7 +170,7 @@ begin
         END IF;       
       
       WHEN S_STOP_SETUP =>
-        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+        IF cnt_delay_s = c_data_setup_hold THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_BUS_FREE;
         ELSE 
@@ -177,7 +178,7 @@ begin
         END IF;         
       
       WHEN S_BUS_FREE =>
-        IF cnt_delay_s =  c_data_setup_hold-1 THEN
+        IF cnt_delay_s = c_bus_free THEN
           cnt_delay_c <= (others => '0');
           fsm_sccb_sender_c <= S_IDLE;
         ELSE 
