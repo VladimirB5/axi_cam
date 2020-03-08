@@ -80,8 +80,8 @@ begin
         cnt_delay_c <= (others => '0');
         cnt_data_c  <= (others => '1');
         cnt_word_c  <= (others => '0');
-        ack_c       <= '0'; -- clear ack before send transaction
         IF start = '1' THEN
+          ack_c             <= '0'; -- clear ack before send transaction
           fsm_sccb_sender_c <= S_START_SETUP;
         END IF;
    
