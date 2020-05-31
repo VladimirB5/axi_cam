@@ -2,9 +2,12 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 --use IEEE.numeric_std.all;
 
+library work;
+use work.axi_cam_pkg.all;
+
 entity axi_cam IS
   generic (
-    G_MUX : boolean -- if internal clock can be switched to second clock domain
+    G_DIAG : boolean -- diagnostig logic added
   );
   port (
     -- clocks and resets
@@ -100,8 +103,10 @@ entity axi_cam IS
   data                 : IN   std_logic_vector(7 downto 0);
   reset                : OUT  std_logic;
   pwdn                 : OUT  std_logic;  
-  siod                 : INOUT  std_logic;
-  sioc                 : OUT  std_logic
+  siod                 : INOUT std_logic;
+  sioc                 : OUT  std_logic;
+  
+  int                  : OUT std_logic
   ); 
 END ENTITY axi_cam;
 
@@ -145,17 +150,29 @@ COMPONENT axi_lite IS
   
   --registers 
   start_addr   : OUT std_logic_vector(31 downto 0);
-  power        : OUT std_logic;
+  addr_we      : OUT std_logic;
+  ena          : OUT std_logic;
+  cap_run      : OUT std_logic; -- capture reciving data from camera
+  hp_run       : OUT std_logic;
   test_ena     : OUT std_logic;
   clock_mux    : OUT std_logic;
+  clk_check_ena: OUT std_logic;
   cam_reset    : OUT std_logic;
   cam_pwdn     : OUT std_logic;
   sccb_data    : OUT std_logic_vector(15 downto 0);
+  int_ena      : OUT std_logic;
+  int_clr_fin  : OUT std_logic;
+  int_clr_err  : OUT std_logic;
   hp_busy      : IN  std_logic; -- axi HP busy
   capture_busy : IN  std_logic;
+  href_busy    : IN  std_logic; -- capturing href
+  capture_err  : IN  std_logic;
+  cap_frm_miss : IN  std_logic;
+  clk_check_ok : IN  std_logic;
+  int_sts_fin  : IN  std_logic;
+  int_sts_err  : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
-  num_frames   : IN  std_logic_vector(7 downto 0);
-  new_frm      : IN  std_logic  -- new frame sended throught AXI HP
+  num_frames   : IN  std_logic_vector(7 downto 0)
   ); 
 end COMPONENT;
 
@@ -222,13 +239,13 @@ COMPONENT axi_hp IS
   data_r  : IN  std_logic_vector(63 downto 0);
   
   -- control signals
-  power    : IN  std_logic;
+  ena      : IN  std_logic;
+  run      : IN  std_logic;
   address  : IN  std_logic_vector(31 downto 0);
+  addr_we  : IN  std_logic;
   curr_addr: OUT std_logic_vector(31 downto 0);
   num_frm  : OUT std_logic_vector(7 downto 0);
-  new_frm  : OUT std_logic;
-  busy     : OUT std_logic;
-  power_sf : OUT std_logic  -- power safety according to axi transaction
+  busy     : OUT std_logic
   ); 
 end COMPONENT; 
 
@@ -276,8 +293,12 @@ COMPONENT cam_capture IS
    data       : IN    std_logic_vector(7 downto 0);
    -- internal signals
    rstn       : IN    std_logic;
-   power      : IN    std_logic;   
-   busy       : OUT   std_logic;
+   ena        : IN    std_logic; -- block enable
+   run        : IN    std_logic; -- run capturing
+   busy       : OUT   std_logic; -- capture in progress
+   href_busy  : OUT   std_logic;
+   frame_mis  : OUT   std_logic; -- frame missed
+   error      : OUT   std_logic;
    -- fifo interface
    data_w     : OUT std_logic_vector(63 downto 0);
    we         : OUT std_logic;
@@ -300,6 +321,14 @@ COMPONENT clk_mux IS
 END COMPONENT; 
 
 COMPONENT cam_test IS
+  generic (
+   vsync_dly   : natural := 1400;  
+   p1_dly      : natural := 1424; 
+   href_dly    : natural := 1280;  
+   p2_dly      : natural := 144;  
+   p3_dly      : natural := 1424;  
+   lines_num   : natural := 480
+  );
   port (
    clk         : IN    std_logic;
    rstn        : IN    std_logic;
@@ -343,6 +372,26 @@ COMPONENT tri_out is
        O    : out std_logic);
 END COMPONENT;
 
+COMPONENT int_ctrl IS
+  port (
+   rstn       : IN std_logic;
+   clk        : IN std_logic;
+   
+   int_ena    : IN std_logic;
+   ena        : IN std_logic; -- axi hp block enabled
+   cap_err    : IN std_logic;
+   hp_busy    : IN std_logic; -- when goes from 1 to 0 it 
+   sts_fin_clr: IN std_logic; -- clear status and interrupt
+   sts_err_clr: IN std_logic; -- clear status and interrupt
+   sts_fin    : OUT std_logic; -- sts finished
+   sts_err    : OUT std_logic; -- status error
+   
+   int        : OUT std_logic
+
+  ); 
+END COMPONENT;
+
+
  signal start_sccb : std_logic;
  signal busy_sccb  : std_logic;
  signal ack_sccb   : std_logic;
@@ -361,18 +410,31 @@ END COMPONENT;
  signal  data_r    : std_logic_vector(63 downto 0); 
  
  -- interna registers signals
+ signal  ena              : std_logic;
+ signal  hp_run           : std_logic;
  signal  start_address    : std_logic_vector(31 downto 0);
- signal  curr_address     : std_logic_vector(31 downto 0); 
+ signal  curr_address     : std_logic_vector(31 downto 0);
+ signal  addr_we          : std_logic;
  signal  num_frames       : std_logic_vector(7 downto 0);
  signal  sccb_data        : std_logic_vector(15 downto 0);
  signal  new_frame        : std_logic;
  signal  hp_busy          : std_logic;
  signal  xclk_mux         : std_logic;   
+ signal  int_ena          : std_logic;
+ signal  int_clr_err      : std_logic;
+ signal  int_clr_fin      : std_logic;
+ signal  int_sts_fin      : std_logic;
+ signal  int_sts_err      : std_logic;
  
  -- signal throught clock domain
- signal  test_ena_100, test_ena_25             : std_logic;  
- signal  power, power_sf, power_25             : std_logic;  
- signal  cap_busy_25, cap_busy_100             : std_logic;
+ signal  ena_25                 : std_logic; 
+ signal  cap_run, cap_run_25    : std_logic;
+ signal  test_ena, test_ena_25  : std_logic;  
+ signal  cap_busy_25, cap_busy  : std_logic;
+ signal  cap_frm_mis_25         : std_logic;
+ signal  cap_frm_mis            : std_logic;  
+ signal  cap_err, cap_err_25    : std_logic;
+ signal  href_busy, href_busy_25: std_logic;
  
  signal  xclk_25   : std_logic; -- clock from camera used for capturing
  signal  xrstn_25  : std_logic; -- reset synchronized to xclk_25
@@ -416,89 +478,102 @@ END COMPONENT;
     busy_sccb  => busy_sccb,
     ack_sccb   => ack_sccb,
   
-    start_addr   => start_address,
-    power        => power,
-    test_ena     => test_ena_100,
-    clock_mux    => xclk_mux,
-    cam_reset    => reset,
-    cam_pwdn     => pwdn,    
-    sccb_data    => sccb_data,
-    hp_busy      => hp_busy,
-    capture_busy => cap_busy_100,
-    curr_addr    => curr_address, 
-    num_frames   => num_frames,
-    new_frm      => new_frame
-  );
+    --registers 
+    start_addr   => start_address, -- 
+    addr_we      => addr_we,-- OUT std_logic;
+    ena          => ena, -- OUT std_logic;
+    cap_run      => cap_run,-- OUT std_logic; -- capture reciving data from camera
+    hp_run       => hp_run,-- OUT std_logic;
+    test_ena     => test_ena,-- OUT std_logic;
+    clock_mux    => xclk_mux,-- OUT std_logic;
+    clk_check_ena=> open, -- OUT std_logic;
+    cam_reset    => reset,-- OUT std_logic;
+    cam_pwdn     => pwdn,-- OUT std_logic;
+    sccb_data    => sccb_data,-- OUT std_logic_vector(15 downto 0);
+    int_ena      => int_ena, -- OUT std_logic;
+    int_clr_fin  => int_clr_fin, -- OUT std_logic;
+    int_clr_err  => int_clr_err, -- OUT std_logic;
+    hp_busy      => hp_busy,-- IN  std_logic; -- axi HP busy
+    capture_busy => cap_busy,-- IN  std_logic;
+    href_busy    => href_busy, -- href capturing
+    capture_err  => cap_err,-- IN  std_logic;
+    cap_frm_miss => cap_frm_mis,-- IN  std_logic;
+    clk_check_ok => '0', -- IN  std_logic;
+    int_sts_fin  => int_sts_fin, -- IN  std_logic;
+    int_sts_err  => int_sts_err, -- IN  std_logic;
+    curr_addr    => curr_address, -- IN  std_logic_vector(31 downto 0);
+    num_frames   => num_frames -- IN  std_logic_vector(7 downto 0)    
+  ); 
 
   i_axi_hp: axi_hp PORT MAP (
-  -- AXI signals
-  -- Global signals
-  ACLK    => clk_100,
-  ARESETn => rstn_100,
-  -- write adress channel
-  AWADDR  => AXI_HP_AWADDR,
-  AWVALID => AXI_HP_AWVALID,
-  AWREADY => AXI_HP_AWREADY,
-  AWID    => AXI_HP_AWID,   
-  AWLOCK  => AXI_HP_AWLOCK, 
-  AWCACHE => AXI_HP_AWCACHE, 
-  AWPROT  => AXI_HP_AWPROT, 
-  AWLEN   => AXI_HP_AWLEN,
-  AWSIZE  => AXI_HP_AWSIZE, 
-  AWBURST => AXI_HP_AWBURST, 
-  AWQOS   => AXI_HP_AWQOS,  
-  -- write data channel  
-  WDATA   => AXI_HP_WDATA,
-  WVALID  => AXI_HP_WVALID,
-  WREADY  => AXI_HP_WREADY,
-  WID     => AXI_HP_WID,
-  WLAST   => AXI_HP_WLAST,
-  WSTRB   => AXI_HP_WSTRB,
-  WCOUNT  => AXI_HP_WCOUNT,
-  WACOUNT => AXI_HP_WACOUNT,
-  WRISSUECAP1EN => AXI_HP_WRISSUECAP1EN,
-  -- write response channel
-  BVALID  => AXI_HP_BVALID,  
-  BREADY  => AXI_HP_BREADY,  
-  BID     => AXI_HP_BID,  
-  BRESP   => AXI_HP_BRESP,  
-  -- read address channel  
-  ARADDR  => AXI_HP_ARADDR,  
-  ARVALID => AXI_HP_ARVALID,  
-  ARREADY => AXI_HP_ARREADY, 
-  ARID    => AXI_HP_ARID,  
-  ARLOCK  => AXI_HP_ARLOCK,  
-  ARCACHE => AXI_HP_ARCACHE,  
-  ARPROT  => AXI_HP_ARPROT, 
-  ARLEN   => AXI_HP_ARLEN,  
-  ARSIZE  => AXI_HP_ARSIZE,  
-  ARBURST => AXI_HP_ARBURST,  
-  ARQOS   => AXI_HP_ARQOS,  
-  -- read data channel  
-  RDATA   => AXI_HP_RDATA,  
-  RVALID  => AXI_HP_RVALID,  
-  RREADY  => AXI_HP_RREADY, 
-  RID     => AXI_HP_RID,   
-  RLAST   => AXI_HP_RLAST,
-  RRESP   => AXI_HP_RRESP, 
-  RCOUNT  => AXI_HP_RCOUNT, 
-  RACOUNT => AXI_HP_RACOUNT,
-  RDISSUECAP1EN => AXI_HP_RDISSUECAP1EN,
+    -- AXI signals
+    -- Global signals
+    ACLK    => clk_100,
+    ARESETn => rstn_100,
+    -- write adress channel
+    AWADDR  => AXI_HP_AWADDR,
+    AWVALID => AXI_HP_AWVALID,
+    AWREADY => AXI_HP_AWREADY,
+    AWID    => AXI_HP_AWID,   
+    AWLOCK  => AXI_HP_AWLOCK, 
+    AWCACHE => AXI_HP_AWCACHE, 
+    AWPROT  => AXI_HP_AWPROT, 
+    AWLEN   => AXI_HP_AWLEN,
+    AWSIZE  => AXI_HP_AWSIZE, 
+    AWBURST => AXI_HP_AWBURST, 
+    AWQOS   => AXI_HP_AWQOS,  
+    -- write data channel  
+    WDATA   => AXI_HP_WDATA,
+    WVALID  => AXI_HP_WVALID,
+    WREADY  => AXI_HP_WREADY,
+    WID     => AXI_HP_WID,
+    WLAST   => AXI_HP_WLAST,
+    WSTRB   => AXI_HP_WSTRB,
+    WCOUNT  => AXI_HP_WCOUNT,
+    WACOUNT => AXI_HP_WACOUNT,
+    WRISSUECAP1EN => AXI_HP_WRISSUECAP1EN,
+    -- write response channel
+    BVALID  => AXI_HP_BVALID,  
+    BREADY  => AXI_HP_BREADY,  
+    BID     => AXI_HP_BID,  
+    BRESP   => AXI_HP_BRESP,  
+    -- read address channel  
+    ARADDR  => AXI_HP_ARADDR,  
+    ARVALID => AXI_HP_ARVALID,  
+    ARREADY => AXI_HP_ARREADY, 
+    ARID    => AXI_HP_ARID,  
+    ARLOCK  => AXI_HP_ARLOCK,  
+    ARCACHE => AXI_HP_ARCACHE,  
+    ARPROT  => AXI_HP_ARPROT, 
+    ARLEN   => AXI_HP_ARLEN,  
+    ARSIZE  => AXI_HP_ARSIZE,  
+    ARBURST => AXI_HP_ARBURST,  
+    ARQOS   => AXI_HP_ARQOS,  
+    -- read data channel  
+    RDATA   => AXI_HP_RDATA,  
+    RVALID  => AXI_HP_RVALID,  
+    RREADY  => AXI_HP_RREADY, 
+    RID     => AXI_HP_RID,   
+    RLAST   => AXI_HP_RLAST,
+    RRESP   => AXI_HP_RRESP, 
+    RCOUNT  => AXI_HP_RCOUNT, 
+    RACOUNT => AXI_HP_RACOUNT,
+    RDISSUECAP1EN => AXI_HP_RDISSUECAP1EN,
   
-  -- zynq fifo signals
-  re      => re,
-  full_r  => full_r,
-  empty   => empty,  --IN  std_logic;
-  data_r  => data_r,  --IN  std_logic_vector(63 downto 0);
+    -- zynq fifo signals
+    re      => re,
+    full_r  => full_r,
+    empty   => empty,  --IN  std_logic;
+    data_r  => data_r,  --IN  std_logic_vector(63 downto 0);
   
-  -- control signals
-  power    => power,  --IN  std_logic;
-  address  => start_address,  --std_logic_vector(31 downto 0);
-  curr_addr=> curr_address,  --OUT std_logic_vector(31 downto 0);
-  num_frm  => num_frames,  --OUT std_logic_vector(7 downto 0);
-  new_frm  => new_frame,    --OUT std_logic
-  busy     => hp_busy,
-  power_sf => power_sf
+    -- control signals
+    ena      => ena, -- IN  std_logic;
+    run      => hp_run,-- IN std_logic;
+    address  => start_address, -- IN (31 downto 0);
+    addr_we  => addr_we, -- IN
+    curr_addr=> curr_address, --out (31 downto 0)
+    num_frm  => num_frames, --out`(7 downto 0)
+    busy     => hp_busy --out 
   ); 
   
   i_sccb : sccb PORT MAP (
@@ -519,14 +594,14 @@ END COMPONENT;
     clk_100  => clk_100, -- 100Mhz clk
     rst_100n => rstn_100,  -- active in 0
     re       => re,
-    sa_rstn  => power_sf,
+    sa_rstn  => ena,
     full_r   => full_r,
     empty    => empty,
     data_r   => data_r,
     -- 25 mhz port
     clk_25   => xclk_25,
     rst_25n  => xrstn_25,
-    sb_rstn  => power_25,
+    sb_rstn  => ena_25,
     data_w   => data_w,
     we       => we,
     full_w   => full_w
@@ -539,18 +614,22 @@ END COMPONENT;
     href     => href_cap,
     data     => data_cap,
     -- internal signals
-    rstn       => xrstn_25, 
-    power      => power_25,
-    busy       => cap_busy_25,
+    rstn     => xrstn_25,
+    ena      => ena_25,
+    run      => cap_run_25,
+    busy     => cap_busy_25,
+    href_busy=> href_busy_25,
+    frame_mis=> cap_frm_mis_25,
+    error    => cap_err_25,     
     -- fifo interface
-    data_w     => data_w,
-    we         => we,
-    full_w     => full_w
+    data_w   => data_w,
+    we       => we,
+    full_w   => full_w
   ); 
   
   i_clk_mux : clk_mux
   generic map (
-    G_MUX => G_MUX -- if mux is use
+    G_MUX => G_DIAG -- if mux is use
   )
   PORT MAP (
     clk    =>  clk_25, -- input clk from clk source
@@ -560,68 +639,139 @@ END COMPONENT;
     clk_25 =>  xclk_25 -- output to 25mhz clock domain
     
   );
-
-  i_cam_test : cam_test PORT MAP (
-   clk         => xclk_25,
-   rstn        => xrstn_25,
-   -- data from camera
-   vsync       => vsync,
-   href        => href,
-   data        => data,
-   -- data to capture
-   vsync_cap   => vsync_cap,
-   href_cap    => href_cap,
-   data_cap    => data_cap,
-   -- control interface
-   test_ena    => test_ena_25
-  ); 
+ 
+  cam_test_full: if G_DIAG = true generate
+    i_cam_test : cam_test 
+    GENERIC MAP (
+      vsync_dly   => C_VSYNC_DLY,  
+      p1_dly      => C_P1_DLY, 
+      href_dly    => C_HREF_DLY,  
+      p2_dly      => C_P2_DLY,  
+      p3_dly      => C_P3_DLY, 
+      lines_num   => C_NUM_LINES
+    )
+    PORT MAP (
+      clk         => xclk_25,
+      rstn        => xrstn_25,
+      -- data from camera
+      vsync       => vsync,
+      href        => href,
+      data        => data,
+      -- data to capture
+      vsync_cap   => vsync_cap,
+      href_cap    => href_cap,
+      data_cap    => data_cap,
+      -- control interface
+      test_ena    => test_ena_25
+    ); 
+  end generate;
+  
+  cam_test_sig: if G_DIAG = false generate
+    vsync_cap <= vsync;
+    href_cap  <= href;
+    data_cap  <= data;
+  end generate;  
   
   i_bi_dir : bi_dir
   port map (
-       T     => siod_w,
-       I     => '0',
-       O_NEW => siod_r,
-       IO    => siod
+    T     => siod_w,
+    I     => '0',
+    O_NEW => siod_r,
+    IO    => siod
   ); 
   
   i_tri_out : tri_out
   port map (
-       T    => sioc_i,
-       I    => '0',
-       O    => sioc
+    T    => sioc_i,
+    I    => '0',
+    O    => sioc
   );  
   
+  i_int_ctrl : int_ctrl
+  port map(
+   rstn       => rstn_100,
+   clk        => clk_100,
+   
+   int_ena    => int_ena, --IN
+   ena        => ena, --IN
+   cap_err    => cap_err,--IN
+   hp_busy    => hp_busy, --IN  
+   sts_fin_clr=> int_clr_fin, --IN 
+   sts_err_clr=> int_clr_err, --IN 
+   sts_fin    => int_sts_fin, --OUT 
+   sts_err    => int_sts_err, --OUT 
+   
+   int        => int --OUT 
+  ); 
+  
   -------------------------------------------------------------------------------
-  i_reset_xclk25 : reset_sync port map (
-           async_res_n => rstn_100,
-           clk         => xclk_25,
-           sync_res_n  => xrstn_25
+  i_reset_xclk25 : reset_sync 
+  port map (
+    async_res_n => rstn_100,
+    clk         => xclk_25,
+    sync_res_n  => xrstn_25
   );  
   
   ------------------------------------------------------------------------------- 
   i_cap_busy : synchronizer
   port map (
-     clk      => clk_100,
-     res_n    => rstn_100,
-     data_in  => cap_busy_25,
-     data_out => cap_busy_100
+    clk      => clk_100,
+    res_n    => rstn_100,
+    data_in  => cap_busy_25,
+    data_out => cap_busy
   );  
   
   ------------------------------------------------------------------------------- 
+  i_cap_href_busy : synchronizer
+  port map (
+    clk      => clk_100,
+    res_n    => rstn_100,
+    data_in  => href_busy_25,
+    data_out => href_busy
+  );  
+    
+  ------------------------------------------------------------------------------- 
   i_test_ena : synchronizer
   port map (
-     clk      => xclk_25,
-     res_n    => xrstn_25, 
-     data_in  => test_ena_100,
-     data_out => test_ena_25
+    clk      => xclk_25,
+    res_n    => xrstn_25, 
+    data_in  => test_ena,
+    data_out => test_ena_25
   );    
   
   ------------------------------------------------------------------------------- 
-  i_power : synchronizer
+  i_ena : synchronizer
   port map (
-     clk      => xclk_25,
-     res_n    => xrstn_25, 
-     data_in  => power_sf,
-     data_out => power_25
+    clk      => xclk_25,
+    res_n    => xrstn_25, 
+    data_in  => ena,
+    data_out => ena_25
+  );   
+  
+  ------------------------------------------------------------------------------- 
+  i_cap_run : synchronizer
+  port map (
+    clk      => xclk_25,
+    res_n    => xrstn_25, 
+    data_in  => cap_run,
+    data_out => cap_run_25
+  );
+  
+  ------------------------------------------------------------------------------- 
+  i_cap_err : synchronizer
+  port map (
+    clk      => xclk_25,
+    res_n    => xrstn_25, 
+    data_in  => cap_err_25,
+    data_out => cap_err
+  );  
+  
+  ------------------------------------------------------------------------------- 
+  i_cap_frm_miss : synchronizer
+  port map (
+    clk      => xclk_25,
+    res_n    => xrstn_25, 
+    data_in  => cap_frm_mis_25,
+    data_out => cap_frm_mis
   );    
 END ARCHITECTURE RTL;

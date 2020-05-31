@@ -2,9 +2,6 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 use IEEE.numeric_std.all;
 
---ADDR: 0 : 
---ADDR: 4 : start_addr
---ADDR: 8 : busy(1), power(0)
 
 ENTITY axi_lite IS
   port (
@@ -43,20 +40,34 @@ ENTITY axi_lite IS
   
   --registers 
   start_addr   : OUT std_logic_vector(31 downto 0);
-  power        : OUT std_logic;
+  addr_we      : OUT std_logic;
+  ena          : OUT std_logic;
+  cap_run      : OUT std_logic; -- capture reciving data from camera
+  hp_run       : OUT std_logic;
   test_ena     : OUT std_logic;
   clock_mux    : OUT std_logic;
+  clk_check_ena: OUT std_logic;
   cam_reset    : OUT std_logic;
   cam_pwdn     : OUT std_logic;
   sccb_data    : OUT std_logic_vector(15 downto 0);
+  int_ena      : OUT std_logic;
+  int_clr_fin  : OUT std_logic;
+  int_clr_err  : OUT std_logic;
   hp_busy      : IN  std_logic; -- axi HP busy
   capture_busy : IN  std_logic;
+  href_busy    : IN  std_logic; -- capturing href
+  capture_err  : IN  std_logic;
+  cap_frm_miss : IN  std_logic;
+  clk_check_ok : IN  std_logic;
+  int_sts_fin  : IN  std_logic;
+  int_sts_err  : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
-  num_frames   : IN  std_logic_vector(7 downto 0);
-  new_frm      : IN  std_logic   -- new frame sended throught AXI HP
+  num_frames   : IN  std_logic_vector(7 downto 0)
   ); 
 END ENTITY axi_lite;
 ARCHITECTURE rtl OF axi_lite IS
+  -- signals
+  signal busy : std_logic;
   -- output registers
   signal  arready_c, arready_s : std_logic; 
   signal  rvalid_c, rvalid_s   : std_logic;
@@ -67,18 +78,23 @@ ARCHITECTURE rtl OF axi_lite IS
   signal  bresp_c, bresp_s     : std_logic_vector(1 downto 0); -- write resonse
   signal  rdata_c, rdata_s     : std_logic_vector(31 downto 0);
   -- register form reg. bank
-  signal start_addr_c, start_addr_s   : std_logic_vector(31 downto 0);
-  signal power_c, power_s : std_logic;
+  signal ena_c, ena_s                 : std_logic;
+  signal cap_run_c, cap_run_s         : std_logic;
+  signal hp_run_c, hp_run_s           : std_logic;
   signal start_sccb_c, start_sccb_s   : std_logic;
   signal clock_mux_c, clock_mux_s     : std_logic;
   signal test_ena_c, test_ena_s       : std_logic;
-  signal stop_c, stop_s               : std_logic; -- when stop is set to 1, block is deactivate after frame is finished
   signal new_frame_c, new_frame_s     : std_logic; -- latched value of new frame
   signal addr_lock_c, addr_lock_s     : std_logic; -- signalized that address is locked to in axi_hp, signal is set in transition 0 -> 1 on busy_hp
-  signal hp_busy_c, hp_busy_s         : std_logic; -- latched value busy_hp
+  signal busy_c, busy_s               : std_logic; -- latched value busy_hp
   signal cam_reset_c, cam_reset_s     : std_logic; 
   signal cam_pwdn_c, cam_pwdn_s       : std_logic;
   signal sccb_data_c, sccb_data_s     : std_logic_vector(15 downto 0);
+  signal clk_check_ena_c, clk_check_ena_s : std_logic;
+  signal int_ena_c, int_ena_s             : std_logic;
+  signal finish_c, finish_s               : std_logic;
+  signal int_clr_fin_s, int_clr_fin_c     : std_logic;
+  signal int_clr_err_s, int_clr_err_c     : std_logic;
   
   -- fsm read declaration
   TYPE t_read_state IS (R_IDLE, R_AREADY, R_VDATA);
@@ -106,47 +122,61 @@ ARCHITECTURE rtl OF axi_lite IS
       rresp_s      <= (others => '0');
       bresp_s      <= (others => '0');
       rdata_s      <= (others => '0');
-      start_addr_s <= (others => '0');
-      power_s      <= '0';
-      stop_s       <= '0';
-      new_frame_s  <= '0';
-      addr_lock_s  <= '0';
+      ena_s        <= '0';
+      cap_run_s    <= '0';
+      hp_run_s     <= '0';
       start_sccb_s <= '0';
       clock_mux_s  <= '0';
       test_ena_s   <= '0';
-      hp_busy_s    <= '0';
+      busy_s       <= '0';
       cam_reset_s  <= '1';
       cam_pwdn_s   <= '1';
       sccb_data_s  <= (others => '0');
+      int_ena_s    <= '0';
+      finish_s     <= '0';
+      int_clr_fin_s<= '0';
+      int_clr_err_s<= '0';   
       fsm_read_s   <= R_IDLE; -- init state after reset
       fsm_write_s  <= W_IDLE;
     ELSIF ACLK = '1' AND ACLK'EVENT THEN
-      arready_s    <= arready_c;
-      rvalid_s     <= rvalid_c;
-      awready_s    <= awready_c;
-      wready_s     <= wready_c;
-      bvalid_s     <= bvalid_c;
-      rresp_s      <= rresp_c;
-      bresp_s      <= bresp_c;
-      rdata_s      <= rdata_c;
-      start_addr_s <= start_addr_c;
-      power_s      <= power_c;
-      stop_s       <= stop_c;
-      new_frame_s  <= new_frame_c;
-      addr_lock_s  <= addr_lock_c;
-      start_sccb_s <= start_sccb_c; 
-      clock_mux_s  <= clock_mux_c;
-      test_ena_s   <= test_ena_c;
-      hp_busy_s    <= hp_busy_c;
-      cam_reset_s  <= cam_reset_c;
-      cam_pwdn_s   <= cam_pwdn_c;
-      sccb_data_s  <= sccb_data_c;
-      fsm_read_s   <= fsm_read_c; -- next fsm state
-      fsm_write_s  <= fsm_write_c;
+      arready_s      <= arready_c;
+      rvalid_s       <= rvalid_c;
+      awready_s      <= awready_c;
+      wready_s       <= wready_c;
+      bvalid_s       <= bvalid_c;
+      rresp_s        <= rresp_c;
+      bresp_s        <= bresp_c;
+      rdata_s        <= rdata_c;
+      ena_s          <= ena_c;
+      cap_run_s      <= cap_run_c;
+      hp_run_s       <= hp_run_c;
+      start_sccb_s   <= start_sccb_c; 
+      clock_mux_s    <= clock_mux_c;
+      test_ena_s     <= test_ena_c;
+      busy_s         <= busy_c;
+      cam_reset_s    <= cam_reset_c;
+      cam_pwdn_s     <= cam_pwdn_c;
+      sccb_data_s    <= sccb_data_c;
+      clk_check_ena_s<= clk_check_ena_c;
+      int_ena_s      <= int_ena_c;
+      finish_s       <= finish_c;
+      int_clr_fin_s  <= int_clr_fin_c;
+      int_clr_err_s  <= int_clr_err_c;     
+      fsm_read_s     <= fsm_read_c; -- next fsm state
+      fsm_write_s    <= fsm_write_c;
     END IF;       
  END PROCESS state_reg;
   
  -- combinational parts 
+ busy <= capture_busy OR hp_busy;
+ 
+ busy_c <= busy;
+ 
+ finish_c <= '1' WHEN busy_s = '1' AND busy = '0' AND ena_s = '1' ELSE 
+             '0' WHEN busy = '1' ELSE
+             '0' WHEN busy = '0' AND ena_s = '0' ELSE -- turn off clear
+             finish_s;
+ 
  -- read processes ---------------------------------------------------------------------------
  next_state_read_logic : PROCESS (fsm_read_s, ARVALID, RREADY)
  BEGIN
@@ -189,52 +219,46 @@ ARCHITECTURE rtl OF axi_lite IS
   END PROCESS output_read_logic;
   
  -- output read mux
- hp_busy_c <= hp_busy;
- output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, hp_busy_s, new_frm, new_frame_s, power_s, stop_s, addr_lock_s,
-                            start_addr_s, curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s)
+ output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, new_frame_s, ena_s, addr_lock_s,
+                            curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s)
  BEGIN
     rdata_c <= (others => '0');
-    rresp_c <= OKAY;
-    IF new_frm = '1' THEN
-      new_frame_c <= '1';
-    ELSE
-      new_frame_c <= new_frame_s;
-    END IF;
-    IF hp_busy_s = '0' and hp_busy = '1' THEN
-      addr_lock_c <= '1';
-    ELSE
-      addr_lock_c <= addr_lock_s; 
-    END IF;    
+    rresp_c <= OKAY;   
     IF ARVALID = '1' AND fsm_read_s = R_AREADY THEN
-      CASE ARADDR(4 downto 2) IS 
-        WHEN "000" => 
-          rdata_c(31 downto 16) <= x"AA55";
-          rdata_c(15 downto 8)  <= num_frames;
-          rdata_c(7)            <= '0';
-          rdata_c(6)            <= '0'; 
-          rdata_c(5)            <= addr_lock_s;
-          rdata_c(4)            <= hp_busy;          
-          rdata_c(3)            <= capture_busy;
-          rdata_c(2)            <= new_frame_s;
-          rdata_c(1)            <= stop_s;          
-          rdata_c(0)            <= power_s;
-          new_frame_c           <= '0'; -- clear after read new frame register
-          addr_lock_c           <= '0'; -- clear after read address lock register
-        WHEN "001" => 
-          rdata_c <= start_addr_s;
-        WHEN "010" =>   
+      CASE ARADDR(5 downto 2) IS 
+        WHEN "0000" => 
+          rdata_c(23 downto 16) <= num_frames;
+          rdata_c(11)           <= cap_frm_miss;
+          rdata_c(10)           <= '0'; 
+          rdata_c(9)            <= hp_busy;
+          rdata_c(8)            <= href_busy;          
+          rdata_c(3)            <= capture_err;
+          rdata_c(1)            <= finish_s;          
+          rdata_c(0)            <= busy;
+        WHEN "0001" =>
+          rdata_c(2) <= clk_check_ena_s;
+          rdata_c(1) <= clock_mux_s;
+          rdata_c(0) <= test_ena_s;
+        WHEN "0010" =>   
           rdata_c <= curr_addr;
-        WHEN "011" =>   
-          rdata_c(7 downto 5)   <= (others => '0');
-          rdata_c(3)            <= cam_pwdn_s;
-          rdata_c(2)            <= cam_reset_s;
-          rdata_c(1)            <= clock_mux_s;
-          rdata_c(0)            <= test_ena_s;
-        WHEN "100" =>
-          rdata_c(15 downto 0)  <= sccb_data_s;
-        WHEN "101" =>
-          rdata_c(1)            <= ack_sccb;
-          rdata_c(0)            <= busy_sccb;
+        WHEN "0011" =>   
+          rdata_c(7 downto 5) <= (others => '0');
+          rdata_c(3)          <= cam_pwdn_s;
+          rdata_c(2)          <= cam_reset_s;
+          rdata_c(1)          <= clock_mux_s;
+          rdata_c(0)          <= test_ena_s;
+        WHEN "0100" =>
+          rdata_c(15 downto 0) <= sccb_data_s;
+        WHEN "0101" =>
+          rdata_c(1) <= ack_sccb;
+          rdata_c(0) <= busy_sccb;
+        WHEN "0110" =>
+          rdata_c(0) <= int_ena_s;
+        WHEN "0111" =>
+          rdata_c(1) <= int_sts_err;
+          rdata_c(0) <= int_sts_fin;
+        WHEN "1000" => 
+          rdata_c <= x"AA55AA55";
         WHEN others =>
           rresp_c <= SLVERR;
       END CASE;
@@ -266,21 +290,28 @@ ARCHITECTURE rtl OF axi_lite IS
     END CASE;
  END PROCESS next_state_write_logic;
   
- output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, power_s, start_addr_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb, stop_s, new_frm, cam_reset_s, cam_pwdn_s, sccb_data_s)
+ output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, ena_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb, cam_reset_s, cam_pwdn_s, sccb_data_s, cap_run_s,
+                               capture_busy, busy)
  BEGIN
-    awready_c    <= '0';
-    wready_c     <= '0';
-    bvalid_c     <= '0';
-    bresp_c      <= bresp_s;
-    power_c      <= power_s;
-    start_addr_c <= start_addr_s; 
-    start_sccb_c <= start_sccb_s;
-    test_ena_c   <= test_ena_s;
-    clock_mux_c  <= clock_mux_s;
-    stop_c       <= stop_s;
-    cam_reset_c  <= cam_reset_s;
-    cam_pwdn_c   <= cam_pwdn_s;   
-    sccb_data_c  <= sccb_data_s;
+    awready_c      <= '0';
+    wready_c       <= '0';
+    bvalid_c       <= '0';
+    bresp_c        <= bresp_s;
+    ena_c          <= ena_s;
+    cap_run_c      <= cap_run_s;
+    hp_run_c       <= '0';
+    start_sccb_c   <= start_sccb_s;
+    test_ena_c     <= test_ena_s;
+    clock_mux_c    <= clock_mux_s;
+    cam_reset_c    <= cam_reset_s;
+    cam_pwdn_c     <= cam_pwdn_s;   
+    sccb_data_c    <= sccb_data_s;
+    clk_check_ena_c<= clk_check_ena_s;
+    int_ena_c      <= int_ena_s;
+    int_clr_fin_c  <= '0';    
+    int_clr_err_c  <= '0';
+    start_addr     <= (others => '0');
+    addr_we        <= '0';
     CASE fsm_write_c IS
       WHEN W_IDLE => 
         bresp_c   <= OKAY;
@@ -291,23 +322,38 @@ ARCHITECTURE rtl OF axi_lite IS
       WHEN W_ADDR_DAT => 
         CASE AWADDR(4 downto 2) IS
           WHEN "000" => 
-            power_c <= WDATA(0);
-            stop_c  <= WDATA(1);
+            if WDATA(0) = '1' AND WDATA(2) = '0' then
+              ena_c <= '1';
+              IF busy = '0' THEN 
+                cap_run_c <= '1';
+                hp_run_c  <= '1'; -- one clk pulse lenght
+              END IF;
+            elsif WDATA(2) = '1' then
+              ena_c <= '0';
+            end if;           
           WHEN "001" => 
-            start_addr_c <= WDATA;
-          WHEN "010" =>           
-            --power_c <= WDATA(0);
+            test_ena_c      <= WDATA(0);
+            clock_mux_c     <= WDATA(1);
+            clk_check_ena_c <= WDATA(2);
+          WHEN "010" =>  
+            IF busy = '1' THEN
+              start_addr <= WDATA;
+              addr_we    <= '1';
+            END IF;
           WHEN "011" =>           
-            test_ena_c  <= WDATA(0);      
-            clock_mux_c <= WDATA(1);
-            cam_reset_c <= WDATA(2);
-            cam_pwdn_c  <= WDATA(3);
+            cam_reset_c <= WDATA(0);
+            cam_pwdn_c  <= WDATA(1);
           WHEN "100" =>
             sccb_data_c <= WDATA(15 downto 0);
           WHEN "101" =>
             IF busy_sccb = '0' THEN
               start_sccb_c <= WDATA(0);
-            END IF;            
+            END IF;       
+          WHEN "110" =>
+            int_ena_c <= WDATA(0);
+          WHEN "111" =>
+            int_clr_fin_c <= WDATA(0);    
+            int_clr_err_c <= WDATA(1);
           WHEN others =>
             bresp_c <= SLVERR;
         END CASE;      
@@ -323,8 +369,8 @@ ARCHITECTURE rtl OF axi_lite IS
     IF busy_sccb = '1' THEN
       start_sccb_c <= '0';
     END IF;
-    IF stop_s = '1' AND new_frm = '1' THEN
-      power_c <= '0';
+    IF capture_busy = '1' THEN
+      cap_run_c <= '0';
     END IF;
   END PROCESS output_write_logic; 
   
@@ -340,13 +386,18 @@ ARCHITECTURE rtl OF axi_lite IS
   BVALID  <= bvalid_s;
   BRESP   <= bresp_s;
   -- output from register bank
-  start_addr  <= start_addr_s;
-  power       <= power_s;
+  ena         <= ena_s;
+  cap_run     <= cap_run_s;
+  hp_run      <= hp_run_s;
+  clk_check_ena <= clk_check_ena_s;
   start_sccb  <= start_sccb_s;
   test_ena    <= test_ena_s;
   clock_mux   <= clock_mux_s;
   cam_reset   <= cam_reset_s;
   cam_pwdn    <= cam_pwdn_s;
   sccb_data   <= sccb_data_s;
+  int_ena     <= int_ena_s;
+  int_clr_fin <= int_clr_fin_s;
+  int_clr_err <= int_clr_err_s;
 END ARCHITECTURE RTL;
  

@@ -2,14 +2,17 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 --use IEEE.numeric_std.all;
 
-ENTITY axi_cam_tb IS 
-END ENTITY axi_cam_tb;
+library work;
+use work.tb_top_pkg.all;
 
-ARCHITECTURE behavior OF axi_cam_tb IS
+ENTITY tb_top IS 
+END ENTITY tb_top;
+
+ARCHITECTURE behavior OF tb_top IS
 -------------------------------------------------------------------------------
 COMPONENT axi_cam IS
   generic (
-    G_MUX : boolean -- if internal clock can be switched to second clock domain
+    G_DIAG : boolean -- if internal clock can be switched to second clock domain
   );
   port (
     -- clocks and resets
@@ -106,9 +109,19 @@ COMPONENT axi_cam IS
   reset                : OUT  std_logic;
   pwdn                 : OUT  std_logic;  
   siod                 : INOUT  std_logic;
-  sioc                 : OUT  std_logic
+  sioc                 : OUT  std_logic;
+   
+  int                  : OUT std_logic
   ); 
 END COMPONENT;
+
+COMPONENT stimuli_tb IS 
+  port (
+    axi_m_in  : IN   t_AXI_M_IN; 
+    axi_m_out : OUT  t_AXI_M_OUT;
+    ctrl      : OUT  t_CTRL
+  );
+END COMPONENT stimuli_tb;
 -------------------------------------------------------------------------------
 
    signal clk_100   : std_logic := '0';
@@ -117,6 +130,7 @@ END COMPONENT;
    signal siod      : std_logic := '0';
    signal sioc      : std_logic := '0';
    
+   signal AXI_L_ACLK    : std_logic;
    -- axi lite signals
    signal AXI_L_AWVALID : std_logic := '0';
    signal AXI_L_AWREADY : std_logic;
@@ -206,7 +220,7 @@ begin
 
    i_axi_cam: axi_cam 
    generic map (
-     G_MUX => true 
+     G_DIAG => true 
    )
    PORT MAP (
      -- clocks and resets
@@ -303,91 +317,42 @@ begin
      reset   => open,
      pwdn    => open,     
      siod    => siod,
-     sioc    => sioc 
+     sioc    => sioc,
+     
+     int     => open
    );
            
-   sim: process
-     begin
-     AXI_L_ARPROT  <= (others => '0');
-     --AXI_L_ARVALID <= '0';     
-     rst_n <= '0';
-     wait for 100 ns;
-     AXI_HP_AWREADY <= '1';
-     AXI_HP_WREADY  <= '1';
-     AXI_HP_BVALID  <= '1';
-     rst_n <= '1';
+   i_stimuli_tb : stimuli_tb
+   PORT MAP (
+     axi_m_in.clk_syn => clk_100,
+     axi_m_in.AWREADY => AXI_L_AWREADY,
+     axi_m_in.WREADY  => AXI_L_WREADY,
+     axi_m_in.BVALID  => AXI_L_BVALID,
+     axi_m_in.BRESP   => AXI_L_BRESP,
+     axi_m_in.ARREADY => AXI_L_ARREADY,
+     axi_m_in.RVALID  => AXI_L_RVALID,
+     axi_m_in.RDATA   => AXI_L_RDATA,
+     axi_m_in.RRESP   => AXI_L_RRESP,
      
-     wait for 50 us;
-     address <= x"00000000";
-     read_start <= NOT read_start;       
-     
-     wait for 50 us;
-     address <= x"00000004";
-     data    <= x"00000004";
-     write_start <= NOT write_start;   
-     
-     wait for 50 us;
-     address <= x"00000004";
-     read_start <= NOT read_start;          
-     
-     wait for 50 us;
-     address <= x"00000000";
-     data    <= x"00000001";
-     write_start <= NOT write_start;  
-     
-     wait for 50 us;
-     address <= x"00000000";
-     read_start <= NOT read_start;   
-     
-     wait for 10 us;
-     address <= x"00000000";
-     read_start <= NOT read_start;         
-     
-     wait for 40 us;
-     address <= x"0000000C";
-     data    <= x"00000001";
-     write_start <= NOT write_start;  
-     
-     wait for 50 us;
-     address <= x"0000000C";
-     read_start <= NOT read_start;     
-     
-     wait for 200 us;
-     
-     address <= x"00000000";
-     read_start <= NOT read_start;   
-     wait for 10 us;
-     
-     address <= x"00000000";
-     read_start <= NOT read_start;   
-     wait for 10 us;
-     
-     address <= x"00000000";
-     data    <= x"00000000";
-     write_start <= NOT write_start;       
-     wait for 10 us;
-     
-     address <= x"0000000C";
-     data    <= x"00000000";
-     write_start <= NOT write_start;       
-     wait for 10 us; 
-     
-     address <= x"00000000";
-     data    <= x"00000003";
-     write_start <= NOT write_start;       
-     wait for 10 us;
-     
-     address <= x"0000000C";
-     data    <= x"00000001";
-     write_start <= NOT write_start;       
-     wait for 10 us;      
-     
-     wait for 200 us;
-     
-     stop_sim <= true;
-     --report "simulation finished successfully" severity FAILURE;
-     wait;    
-   end process;
+     axi_m_out.ACLK   => AXI_L_ACLK,    
+     axi_m_out.AWVALID=> AXI_L_AWVALID,
+     axi_m_out.AWADDR => AXI_L_AWADDR,
+     axi_m_out.AWPROT => AXI_L_AWPROT,
+     axi_m_out.WVALID => AXI_L_WVALID,
+     axi_m_out.WDATA  => AXI_L_WDATA,
+     axi_m_out.WSTRB  => AXI_L_WSTRB,
+     axi_m_out.BREADY => AXI_L_BREADY,
+     axi_m_out.ARVALID=> AXI_L_ARVALID,
+     axi_m_out.ARADDR => AXI_L_ARADDR,
+     axi_m_out.ARPROT => AXI_L_ARPROT,
+     axi_m_out.RREADY => AXI_L_RREADY,
+--      t_CTRL
+     ctrl.stop_sim    => stop_sim,
+     ctrl.rst_n       => rst_n,
+     ctrl.AXI_HP_AWREADY => AXI_HP_AWREADY,
+     ctrl.AXI_HP_WREADY  => AXI_HP_WREADY,
+     ctrl.AXI_HP_BVALID  => AXI_HP_BVALID
+   );  
    
    clock_100: process
      begin
@@ -410,47 +375,6 @@ begin
           wait;
         end if;
    end process;   
-   
-   write: process
-     begin 
-       wait until write_start'event;
-       AXI_L_AWVALID <= '1';
-       AXI_L_awaddr  <= address;
-       wait for 10 ns;
-       AXI_L_wvalid  <= '1';
-       AXI_L_wstrb   <= (others => '1');
-       AXI_L_wdata   <= data;
-       wait until AXI_L_awready = '1' AND AXI_L_awready'EVENT;
-       wait for 1 ns;
-       AXI_L_awvalid <= '0';
-       AXI_L_wvalid  <= '0';
-       AXI_L_awaddr  <= (others => '0');
-       AXI_L_wstrb   <= (others => '0');   
-       wait until clk_100 = '1' AND clk_100'EVENT;
-       wait for 1 ns;
-       AXI_L_bready <= '1';
-       wait until clk_100 = '1' AND clk_100'EVENT;
-       wait for 1 ns;
-       AXI_L_bready <= '0'; 
-   end process;
-   
-   read: process
-     begin 
-       AXI_L_ARVALID <= '0';
-       AXI_L_rready  <= '0';
-       wait until read_start'event;
-       wait until clk_100 = '0' AND clk_100'EVENT;
-       AXI_L_ARVALID <= '1';
-       AXI_L_araddr  <= address;
-       --wait until AXI_L_arready = '1' AND AXI_L_awready'EVENT;
-       wait until clk_100 = '1' AND clk_100'EVENT;
-       wait for 1 ns;
-       AXI_L_arvalid <= '0';
-       AXI_L_rready  <= '1';
-       AXI_L_araddr  <= (others => '0');
-       wait until clk_100 = '1' AND clk_100'EVENT;
-       wait for 1 ns;
-       AXI_L_rready  <= '0';
-   end process;   
-
+      
 end ARCHITECTURE behavior; 
+ 

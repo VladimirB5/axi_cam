@@ -2,6 +2,8 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 use IEEE.numeric_std.all;
 
+library work;
+use work.axi_cam_pkg.all;
 
 ENTITY axi_hp IS
   port (
@@ -66,13 +68,13 @@ ENTITY axi_hp IS
   data_r  : IN  std_logic_vector(63 downto 0);
   
   -- control signals
-  power    : IN  std_logic;
+  ena      : IN  std_logic;
+  run      : IN  std_logic;
   address  : IN  std_logic_vector(31 downto 0);
+  addr_we  : IN  std_logic;
   curr_addr: OUT std_logic_vector(31 downto 0);
   num_frm  : OUT std_logic_vector(7 downto 0);
-  new_frm  : OUT std_logic;
-  busy     : OUT std_logic;
-  power_sf : OUT std_logic  -- power safety according to axi transaction
+  busy     : OUT std_logic
   ); 
 END ENTITY axi_hp; 
  
@@ -87,12 +89,8 @@ ARCHITECTURE rtl OF axi_hp IS
   signal num_frame_c    : unsigned(7 downto 0);
   signal trn_num_c      : unsigned(12 downto 0); -- transaction number
   signal trn_num_s      : unsigned(12 downto 0);
-  signal new_frm_c      : std_logic;
-  signal new_frm_s      : std_logic;
   signal busy_c         : std_logic;
   signal busy_s         : std_logic;
-  signal power_sf_c     : std_logic;
-  signal power_sf_s     : std_logic;
   -- axi signal regisetrs
   signal awvalid_c      : std_logic;
   signal awvalid_s      : std_logic;
@@ -108,7 +106,7 @@ ARCHITECTURE rtl OF axi_hp IS
   signal wstrb_s        : std_logic_vector(7 downto 0);
   
   -- fsm read declaration
-  TYPE t_axi_state IS (S_IDLE, S_WAIT_FIFO, S_AWVALID, S_WAIT_AWREADY, S_RE, S_SAVE, S_WVALID, S_WLAST, S_RESPONSE, S_END_FRAME);
+  TYPE t_axi_state IS (S_IDLE, S_FINISH, S_WAIT_FIFO, S_AWVALID, S_WAIT_AWREADY, S_RE, S_SAVE, S_WVALID, S_WLAST, S_RESPONSE, S_END_FRAME);
   SIGNAL fsm_axi_c, fsm_axi_s :t_axi_state;  
 BEGIN 
 -------------------------------------------------------------------------------
@@ -123,9 +121,7 @@ BEGIN
       re_s           <= '0';
       num_frame_s    <= (others => '0');      
       trn_num_s      <= (others => '0');
-      new_frm_s      <= '0';
       busy_s         <= '0';
-      power_sf_s     <= '0';
       -- axi signals
       awvalid_s      <= '0';
       wvalid_s       <= '0';
@@ -140,9 +136,7 @@ BEGIN
       re_s           <= re_c;
       num_frame_s    <= num_frame_c;
       trn_num_s      <= trn_num_c;
-      new_frm_s      <= new_frm_c;
       busy_s         <= busy_c;
-      power_sf_s     <= power_sf_c;
       -- axi signals
       awvalid_s      <= awvalid_c;
       wvalid_s       <= wvalid_c;
@@ -156,10 +150,9 @@ BEGIN
 -------------------------------------------------------------------------------
 -- combinational parts 
 -------------------------------------------------------------------------------
- power_sf_c <= busy_s OR power; 
   
- next_state_axi_hp_logic : PROCESS (fsm_axi_s, empty, power, data_cnt_s, AWREADY, WREADY, wid_s, curr_address_s, trn_num_s, num_frame_s, new_frm_s,
-                                    address, BVALID)
+ next_state_axi_hp_logic : PROCESS (fsm_axi_s, empty, ena, data_cnt_s, AWREADY, WREADY, wid_s, curr_address_s, trn_num_s, num_frame_s, 
+                                    address, BVALID, run)
  BEGIN
     fsm_axi_c      <= fsm_axi_s;
     data_cnt_c     <= data_cnt_s;
@@ -167,20 +160,31 @@ BEGIN
     curr_address_c <= curr_address_s;
     trn_num_c      <= trn_num_s;
     num_frame_c    <= num_frame_s;
-    new_frm_c      <= '0';
     CASE fsm_axi_s IS
       WHEN S_IDLE =>
         data_cnt_c     <= (others => '0');
-        curr_address_c <= unsigned(address);
+        IF addr_we = '1' THEN
+          curr_address_c <= unsigned(address);
+        END IF;
         trn_num_c      <= (others => '0');
+        num_frame_c    <= (others => '0');
         wid_c          <= (others => '0');
-        IF power = '1' THEN
+        IF ena = '1' THEN
           fsm_axi_c <= S_WAIT_FIFO;
         END IF;  
+        
+      WHEN S_FINISH => 
+        trn_num_c   <= (others => '0');
+        wid_c       <= (others => '0');
+        IF ena = '0' THEN
+          fsm_axi_c <= S_IDLE;
+        ELSIF run = '1' THEN
+          fsm_axi_c <= S_WAIT_FIFO;
+        END IF;
       
       WHEN S_WAIT_FIFO =>
         data_cnt_c <= (others => '0');
-        IF power = '0' THEN
+        IF ena = '0' THEN
           fsm_axi_c   <= S_IDLE;
         ELSIF empty = '0' THEN
           fsm_axi_c <= S_AWVALID;
@@ -224,15 +228,14 @@ BEGIN
         END IF;
       
       WHEN S_END_FRAME =>
-        IF (trn_num_s < 4799) THEN -- 4799 value for full frame
+        IF (trn_num_s = C_HP_FULL_FRAME) THEN 
+          num_frame_c <= num_frame_s + 1; 
+          fsm_axi_c   <= S_FINISH; 
+        ELSE
           wid_c <= wid_s + 1;
           curr_address_c <= curr_address_s + 128;
           fsm_axi_c <= S_WAIT_FIFO; 
           trn_num_c <= trn_num_s + 1;
-        ELSE
-          num_frame_c <= num_frame_s + 1; 
-          fsm_axi_c   <= S_IDLE; 
-          new_frm_c   <= '1';
         END IF;
     END CASE; 
  END PROCESS next_state_axi_hp_logic;
@@ -248,6 +251,9 @@ BEGIN
     wstrb_c        <= (others => '0');
     CASE fsm_axi_c IS
       WHEN S_IDLE =>
+        busy_c <= '0';
+        
+      WHEN S_FINISH => 
         busy_c <= '0';
         
       WHEN S_WAIT_FIFO =>
@@ -285,10 +291,8 @@ BEGIN
 -- output assigment
 -------------------------------------------------------------------------------
   re            <= re_s;
-  new_frm       <= new_frm_s;
   num_frm       <= std_logic_vector(num_frame_s);
   busy          <= busy_s;
-  power_sf      <= power_sf_s;
   curr_addr     <= std_logic_vector(curr_address_s);
   -- axi signals
   AWVALID       <= awvalid_s;

@@ -15,14 +15,19 @@ GHDL=ghdl
 all: cam sccb
 
 cam: elab
-	ghdl -e --std=08 axi_cam_tb
-	ghdl -r --std=08 axi_cam_tb --wave=axi_cam_tb.ghw
+	ghdl -a --std=08 tb/cam_stimuli.vhdl
+	ghdl -a --std=08 tb/tb_top.vhdl	
+	ghdl -e --std=08 tb_top
+	ghdl -r --std=08 tb_top --wave=axi_cam_tb.ghw
 
 sccb: elab
-	ghdl -e --std=08 axi_sccb_tb
-	ghdl -r --std=08 axi_sccb_tb --wave=axi_sccb_tb.ghw
+	ghdl -a --std=08 tb/sccb_stimuli.vhdl	
+	ghdl -a --std=08 tb/tb_top.vhdl	
+	ghdl -e --std=08 tb_top
+	ghdl -r --std=08 tb_top --wave=axi_sccb_tb.ghw
 
-elab: tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl check
+elab: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl int_ctrl.vhdl axi_cam.vhdl tb/tb_top_pkg.vhdl tb/axi_lite_pkg.vhdl check
+	ghdl -a --std=08 axi_cam_pkg.vhdl
 	ghdl -a --std=08 tri_out.vhdl
 	ghdl -a --std=08 bi_dir.vhdl
 	ghdl -a --std=08 sccb_sender.vhdl
@@ -39,11 +44,14 @@ elab: tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_wri
 	ghdl -a --std=08 cam_test.vhdl
 	ghdl -a --std=08 no_synth/clk_mux.vhdl
 	ghdl -a --std=08 axi_hp.vhdl
+	ghdl -a --std=08 int_ctrl.vhdl
 	ghdl -a --std=08 axi_cam.vhdl
-	ghdl -a --std=08 axi_cam_tb.vhdl
-	ghdl -a --std=08 axi_sccb_tb.vhdl
+	ghdl -a --std=08 tb/tb_top_pkg.vhdl
+	ghdl -a --std=08 tb/axi_lite_pkg.vhdl		
 
-check: tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl axi_cam_tb.vhdl axi_sccb_tb.vhdl
+
+check: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl int_ctrl.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl
+	ghdl -s --std=08 axi_cam_pkg.vhdl
 	ghdl -s --std=08 tri_out.vhdl
 	ghdl -s --std=08 bi_dir.vhdl
 	ghdl -s --std=08 sccb_sender.vhdl
@@ -56,13 +64,12 @@ check: tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_wr
 	ghdl -s --std=08 synchronizer.vhdl
 	ghdl -s --std=08 fifo.vhdl
 	ghdl -s --std=08 synchronizer_vector.vhdl
-	ghdl -s --std=08 cam_capture.vhdl
-	ghdl -s --std=08 cam_test.vhdl
+#	ghdl -s --std=08 cam_capture.vhdl
+	ghdl -s --std=08 int_ctrl.vhdl
+#	ghdl -s --std=08 cam_test.vhdl
 	ghdl -s --std=08 no_synth/clk_mux.vhdl
-	ghdl -s --std=08 axi_hp.vhdl
-	ghdl -s --std=08 axi_cam.vhdl
-	ghdl -s --std=08 axi_cam_tb.vhdl
-	ghdl -s --std=08 axi_sccb_tb.vhdl
+#	ghdl -s --std=08 axi_hp.vhdl
+#	ghdl -s --std=08 axi_cam.vhdl
 
 #fifo: RAM.vhdl fifo_write.vhdl fifo_read.vhdl fifo.vhdl
 #	ghdl -a --std=08 RAM.vhdl
