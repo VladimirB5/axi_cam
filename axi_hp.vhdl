@@ -152,7 +152,7 @@ BEGIN
 -------------------------------------------------------------------------------
   
  next_state_axi_hp_logic : PROCESS (fsm_axi_s, empty, ena, data_cnt_s, AWREADY, WREADY, wid_s, curr_address_s, trn_num_s, num_frame_s, 
-                                    address, BVALID, run)
+                                    address, BVALID, run, addr_we)
  BEGIN
     fsm_axi_c      <= fsm_axi_s;
     data_cnt_c     <= data_cnt_s;

@@ -220,7 +220,8 @@ ARCHITECTURE rtl OF axi_lite IS
   
  -- output read mux
  output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, new_frame_s, ena_s, addr_lock_s,
-                            curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s)
+                            curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s, cap_frm_miss,
+                            href_busy, capture_err, finish_s, busy, clk_check_ena_s, int_ena_s, int_sts_err, int_sts_fin)
  BEGIN
     rdata_c <= (others => '0');
     rresp_c <= OKAY;   
@@ -291,7 +292,7 @@ ARCHITECTURE rtl OF axi_lite IS
  END PROCESS next_state_write_logic;
   
  output_write_logic : PROCESS (fsm_write_c, AWADDR(4 downto 2), WDATA, ena_s, start_sccb_s, test_ena_s, clock_mux_s, bresp_s, busy_sccb, cam_reset_s, cam_pwdn_s, sccb_data_s, cap_run_s,
-                               capture_busy, busy)
+                               capture_busy, busy, clk_check_ena_s, int_ena_s)
  BEGIN
     awready_c      <= '0';
     wready_c       <= '0';

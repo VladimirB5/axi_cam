@@ -77,7 +77,7 @@ BEGIN
 -- FSM
 -------------------------------------------------------------------------------
   
- next_state_capture_logic : PROCESS (fsm_cap_s, cnt_s, vsync, href, full_w, run, ena)
+ next_state_capture_logic : PROCESS (fsm_cap_s, cnt_s, vsync, href, full_w, run, ena, frame_miss_s, href_cnt_s)
  BEGIN
     frame_miss_c <= frame_miss_s;
     fsm_cap_c <= fsm_cap_s;
@@ -140,7 +140,7 @@ BEGIN
     END CASE;        
  END PROCESS next_state_capture_logic;
  
- output_capture_logic : PROCESS (fsm_cap_c, cnt_s, data_s, data, href_cnt_s, fsm_cap_s)
+ output_capture_logic : PROCESS (fsm_cap_c, cnt_s, data_s, data, href_cnt_s, fsm_cap_s, href_cnt_s)
  BEGIN
     we_c <= '0';
     data_c <= data_s;
@@ -148,6 +148,7 @@ BEGIN
     busy_c <= '1';
     href_busy_c <= '0';
     err_c <= '0';
+    href_cnt_c <= href_cnt_s;
     CASE fsm_cap_c IS
       WHEN S_IDLE =>
         cnt_c <= (others => '0');
