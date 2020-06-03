@@ -176,6 +176,9 @@ BEGIN
       WHEN S_FINISH => 
         trn_num_c   <= (others => '0');
         wid_c       <= (others => '0');
+        IF addr_we = '1' THEN
+          curr_address_c <= unsigned(address);
+        END IF;  
         IF ena = '0' THEN
           fsm_axi_c <= S_IDLE;
         ELSIF run = '1' THEN

@@ -111,7 +111,7 @@ COMPONENT axi_cam IS
   siod                 : INOUT  std_logic;
   sioc                 : OUT  std_logic;
    
-  int                  : OUT std_logic
+  cam_int              : OUT std_logic
   ); 
 END COMPONENT;
 
@@ -319,7 +319,7 @@ begin
      siod    => siod,
      sioc    => sioc,
      
-     int     => open
+     cam_int => open
    );
            
    i_stimuli_tb : stimuli_tb

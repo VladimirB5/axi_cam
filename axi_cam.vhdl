@@ -106,7 +106,7 @@ entity axi_cam IS
   siod                 : INOUT std_logic;
   sioc                 : OUT  std_logic;
   
-  int                  : OUT std_logic
+  cam_int              : OUT std_logic
   ); 
 END ENTITY axi_cam;
 
@@ -701,7 +701,7 @@ END COMPONENT;
    sts_fin    => int_sts_fin, --OUT 
    sts_err    => int_sts_err, --OUT 
    
-   int        => int --OUT 
+   int        => cam_int --OUT 
   ); 
   
   -------------------------------------------------------------------------------

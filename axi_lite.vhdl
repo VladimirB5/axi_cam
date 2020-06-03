@@ -337,7 +337,7 @@ ARCHITECTURE rtl OF axi_lite IS
             clock_mux_c     <= WDATA(1);
             clk_check_ena_c <= WDATA(2);
           WHEN "010" =>  
-            IF busy = '1' THEN
+            IF busy = '0' THEN
               start_addr <= WDATA;
               addr_we    <= '1';
             END IF;

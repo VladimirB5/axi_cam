@@ -1,6 +1,6 @@
 LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
---use IEEE.numeric_std.all;
+use IEEE.numeric_std.all;
 
 use work.tb_top_pkg.all;
 use work.axi_lite_pkg.all;
@@ -15,8 +15,9 @@ END ENTITY stimuli_tb;
 
 ARCHITECTURE cam_stimuli OF stimuli_tb IS
 -------------------------------------------------------------------------------
-  signal address : std_logic_vector(31 downto 0);
-  signal data    : std_logic_vector(31 downto 0);
+  signal address   : std_logic_vector(31 downto 0);
+  signal data      : std_logic_vector(31 downto 0);
+  signal data_read : std_logic_vector(31 downto 0) := (others => '0');
  
 begin
 
@@ -33,6 +34,10 @@ begin
      ctrl.rst_n <= '1';
           
      wait for us;
+     address <= x"00000008";
+     data    <= x"00000004"; -- save address
+     axi_write(axi_m_in, axi_m_out, address, data);     
+     
      address <= x"00000018";
      data    <= x"00000001"; -- enable interrupt
      axi_write(axi_m_in, axi_m_out, address, data);     
@@ -46,6 +51,16 @@ begin
      axi_write(axi_m_in, axi_m_out, address, data);     
      
      wait for 500 us;
+     -- read curr address
+     address <= x"00000008";
+     axi_read(axi_m_in, axi_m_out, address, data_read);       
+     report "current address = " & integer'image(to_integer(unsigned(data_read)));
+     
+     address <= x"00000008";
+     data    <= x"00000000"; -- set address to 0  
+     axi_write(axi_m_in, axi_m_out, address, data);       
+     
+     
      address <= x"0000001c";
      data    <= x"00000001"; -- clear pending interrupt
      axi_write(axi_m_in, axi_m_out, address, data);       
