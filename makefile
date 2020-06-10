@@ -26,7 +26,7 @@ sccb: elab
 	ghdl -e --std=08 tb_top
 	ghdl -r --std=08 tb_top --wave=axi_sccb_tb.ghw
 
-elab: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl int_ctrl.vhdl axi_cam.vhdl tb/tb_top_pkg.vhdl tb/axi_lite_pkg.vhdl check
+elab: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl int_ctrl.vhdl clk_check.vhdl axi_cam.vhdl tb/tb_top_pkg.vhdl tb/axi_lite_pkg.vhdl check
 	ghdl -a --std=08 axi_cam_pkg.vhdl
 	ghdl -a --std=08 tri_out.vhdl
 	ghdl -a --std=08 bi_dir.vhdl
@@ -45,12 +45,13 @@ elab: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_l
 	ghdl -a --std=08 no_synth/clk_mux.vhdl
 	ghdl -a --std=08 axi_hp.vhdl
 	ghdl -a --std=08 int_ctrl.vhdl
+	ghdl -a --std=08 clk_check.vhdl	
 	ghdl -a --std=08 axi_cam.vhdl
 	ghdl -a --std=08 tb/tb_top_pkg.vhdl
 	ghdl -a --std=08 tb/axi_lite_pkg.vhdl		
 
 
-check: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl int_ctrl.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl
+check: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_lite.vhdl fifo_write.vhdl fifo_read.vhdl RAM.vhdl reset_sync.vhdl synchronizer.vhdl synchronizer_vector.vhdl fifo.vhdl cam_capture.vhdl int_ctrl.vhdl clk_check.vhdl cam_test.vhdl clk_mux.vhdl axi_hp.vhdl axi_cam.vhdl
 	ghdl -s --std=08 axi_cam_pkg.vhdl
 	ghdl -s --std=08 tri_out.vhdl
 	ghdl -s --std=08 bi_dir.vhdl
@@ -66,6 +67,7 @@ check: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_
 	ghdl -s --std=08 synchronizer_vector.vhdl
 #	ghdl -s --std=08 cam_capture.vhdl
 	ghdl -s --std=08 int_ctrl.vhdl
+	ghdl -s --std=08 clk_check.vhdl
 #	ghdl -s --std=08 cam_test.vhdl
 	ghdl -s --std=08 no_synth/clk_mux.vhdl
 #	ghdl -s --std=08 axi_hp.vhdl

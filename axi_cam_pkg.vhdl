@@ -17,6 +17,12 @@ package axi_cam_pkg is
   CONSTANT C_HREF_DLY  : natural := 1280;  -- 640 * 2
   CONSTANT C_P2_DLY    : natural := 144;  
   CONSTANT C_P3_DLY    : natural := 1424; 
+  
+  -- clk check
+  CONSTANT C_CNTA      : natural := 8;  
+  CONSTANT C_CNTB      : natural := 11;
+  CONSTANT C_MIN_VAL   : natural := 1014;
+  CONSTANT C_MAX_VAL   : natural := 1034;
       
 end package axi_cam_pkg;
  

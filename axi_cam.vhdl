@@ -391,6 +391,25 @@ COMPONENT int_ctrl IS
   ); 
 END COMPONENT;
 
+COMPONENT clk_check IS
+  generic (
+   G_CNTA    : natural := 8;  
+   G_CNTB    : natural := 11;
+   G_MIN_VAL : natural := 1014;
+   G_MAX_VAL : natural := 1034
+  );
+  port (
+   -- clock to be checked
+   clk_a       : IN    std_logic;
+   rstn_a      : IN    std_logic;
+   -- performing clock
+   clk_b       : IN    std_logic;
+   rstn_b      : IN    std_logic;
+   ena         : IN    std_logic;
+   check_ok    : OUT   std_logic
+  ); 
+END COMPONENT clk_check; 
+
 
  signal start_sccb : std_logic;
  signal busy_sccb  : std_logic;
@@ -425,6 +444,10 @@ END COMPONENT;
  signal  int_clr_fin      : std_logic;
  signal  int_sts_fin      : std_logic;
  signal  int_sts_err      : std_logic;
+ 
+ -- clk check signals
+ signal  clk_check_ena    : std_logic;
+ signal  clk_check_ok     : std_logic;
  
  -- signal throught clock domain
  signal  ena_25                 : std_logic; 
@@ -486,7 +509,7 @@ END COMPONENT;
     hp_run       => hp_run,-- OUT std_logic;
     test_ena     => test_ena,-- OUT std_logic;
     clock_mux    => xclk_mux,-- OUT std_logic;
-    clk_check_ena=> open, -- OUT std_logic;
+    clk_check_ena=> clk_check_ena, -- OUT std_logic;
     cam_reset    => reset,-- OUT std_logic;
     cam_pwdn     => pwdn,-- OUT std_logic;
     sccb_data    => sccb_data,-- OUT std_logic_vector(15 downto 0);
@@ -498,7 +521,7 @@ END COMPONENT;
     href_busy    => href_busy, -- href capturing
     capture_err  => cap_err,-- IN  std_logic;
     cap_frm_miss => cap_frm_mis,-- IN  std_logic;
-    clk_check_ok => '0', -- IN  std_logic;
+    clk_check_ok => clk_check_ok, -- IN  std_logic;
     int_sts_fin  => int_sts_fin, -- IN  std_logic;
     int_sts_err  => int_sts_err, -- IN  std_logic;
     curr_addr    => curr_address, -- IN  std_logic_vector(31 downto 0);
@@ -703,6 +726,30 @@ END COMPONENT;
    
    int        => cam_int --OUT 
   ); 
+
+  clk_check_full: if G_DIAG = true generate  
+    i_clk_check : clk_check
+    generic map(
+      G_CNTA    => C_CNTA,
+      G_CNTB    => C_CNTB,
+      G_MIN_VAL => C_MIN_VAL,
+      G_MAX_VAL => C_MAX_VAL
+    )
+    port map (
+      -- clock to be checked
+      clk_a     => xclk_25,
+      rstn_a    => xrstn_25,
+      -- performing clock
+      clk_b     => clk_100,
+      rstn_b    => rstn_100,
+      ena       => clk_check_ena,
+      check_ok  => clk_check_ok
+    );     
+  end generate;
+  
+  clk_check_sig: if G_DIAG = false generate
+    clk_check_ok <= '0';
+  end generate;    
   
   -------------------------------------------------------------------------------
   i_reset_xclk25 : reset_sync 

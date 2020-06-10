@@ -114,30 +114,31 @@ ARCHITECTURE rtl OF axi_lite IS
  state_reg : PROCESS (ACLK, ARESETn)
    BEGIN
     IF ARESETn = '0' THEN
-      arready_s    <= '0';
-      rvalid_s     <= '0';
-      awready_s    <= '0';
-      wready_s     <= '0';
-      bvalid_s     <= '0';
-      rresp_s      <= (others => '0');
-      bresp_s      <= (others => '0');
-      rdata_s      <= (others => '0');
-      ena_s        <= '0';
-      cap_run_s    <= '0';
-      hp_run_s     <= '0';
-      start_sccb_s <= '0';
-      clock_mux_s  <= '0';
-      test_ena_s   <= '0';
-      busy_s       <= '0';
-      cam_reset_s  <= '1';
-      cam_pwdn_s   <= '1';
-      sccb_data_s  <= (others => '0');
-      int_ena_s    <= '0';
-      finish_s     <= '0';
-      int_clr_fin_s<= '0';
-      int_clr_err_s<= '0';   
-      fsm_read_s   <= R_IDLE; -- init state after reset
-      fsm_write_s  <= W_IDLE;
+      arready_s      <= '0';
+      rvalid_s       <= '0';
+      awready_s      <= '0';
+      wready_s       <= '0';
+      bvalid_s       <= '0';
+      rresp_s        <= (others => '0');
+      bresp_s        <= (others => '0');
+      rdata_s        <= (others => '0');
+      ena_s          <= '0';
+      cap_run_s      <= '0';
+      hp_run_s       <= '0';
+      start_sccb_s   <= '0';
+      clock_mux_s    <= '0';
+      test_ena_s     <= '0';
+      busy_s         <= '0';
+      cam_reset_s    <= '1';
+      cam_pwdn_s     <= '1';
+      sccb_data_s    <= (others => '0');
+      clk_check_ena_s<= '0';
+      int_ena_s      <= '0';
+      finish_s       <= '0';
+      int_clr_fin_s  <= '0';
+      int_clr_err_s  <= '0';   
+      fsm_read_s     <= R_IDLE; -- init state after reset
+      fsm_write_s    <= W_IDLE;
     ELSIF ACLK = '1' AND ACLK'EVENT THEN
       arready_s      <= arready_c;
       rvalid_s       <= rvalid_c;
@@ -230,7 +231,7 @@ ARCHITECTURE rtl OF axi_lite IS
         WHEN "0000" => 
           rdata_c(23 downto 16) <= num_frames;
           rdata_c(11)           <= cap_frm_miss;
-          rdata_c(10)           <= '0'; 
+          rdata_c(10)           <= clk_check_ok; 
           rdata_c(9)            <= hp_busy;
           rdata_c(8)            <= href_busy;          
           rdata_c(3)            <= capture_err;

@@ -34,8 +34,12 @@ begin
      
      wait for 50 us;
      address <= x"00000004";
+     data    <= x"00000004";
+     axi_write(axi_m_in, axi_m_out, address, data); -- turn on clk check
+     
+     address <= x"00000010";
      data    <= x"00001280";
-     axi_write(axi_m_in, axi_m_out, address, data);
+     axi_write(axi_m_in, axi_m_out, address, data); -- write data into sccb register
      
      wait for 50 us;
      address <= x"00000014";
