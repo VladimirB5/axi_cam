@@ -232,13 +232,14 @@ BEGIN
       
       WHEN S_END_FRAME =>
         IF (trn_num_s = C_HP_FULL_FRAME) THEN 
-          num_frame_c <= num_frame_s + 1; 
-          fsm_axi_c   <= S_FINISH; 
+          curr_address_c <= curr_address_s + 128; -- at the end increase curr address
+          num_frame_c    <= num_frame_s + 1; 
+          fsm_axi_c      <= S_FINISH; 
         ELSE
           wid_c <= wid_s + 1;
           curr_address_c <= curr_address_s + 128;
-          fsm_axi_c <= S_WAIT_FIFO; 
-          trn_num_c <= trn_num_s + 1;
+          fsm_axi_c      <= S_WAIT_FIFO; 
+          trn_num_c      <= trn_num_s + 1;
         END IF;
     END CASE; 
  END PROCESS next_state_axi_hp_logic;
