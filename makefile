@@ -12,7 +12,13 @@ GHDL=ghdl
 #    carry_ripple_adder_testbench \
 #    full_adder_testbenc
 
-all: cam sccb
+all: cam sccb case1
+
+case1: elab
+	ghdl -a --std=08 tb/case1_stimuli.vhdl
+	ghdl -a --std=08 tb/tb_top.vhdl	
+	ghdl -e --std=08 tb_top
+	ghdl -r --std=08 tb_top --wave=case1_tb.ghw
 
 cam: elab
 	ghdl -a --std=08 tb/cam_stimuli.vhdl

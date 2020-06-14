@@ -37,7 +37,7 @@ ARCHITECTURE rtl OF cam_capture IS
   signal href_busy_c, href_busy_s       : std_logic;
   signal err_c, err_s                   : std_logic;
   -- fsm read declaration
-  TYPE t_capture_state IS (S_IDLE, S_FINISH, S_WAIT_VSYNC, S_WAIT_HREF, S_CAPTURE, S_WRITE, S_ERR);
+  TYPE t_capture_state IS (S_IDLE, S_FINISH, S_WAIT_VSYNC_HIGH, S_WAIT_VSYNC_LOW, S_WAIT_HREF, S_CAPTURE, S_WRITE, S_ERR);
   SIGNAL fsm_cap_c, fsm_cap_s :t_capture_state;   
    
 BEGIN
@@ -85,7 +85,7 @@ BEGIN
       WHEN S_IDLE =>
         frame_miss_c <= '0'; 
         IF ena = '1' and run = '1' THEN
-          fsm_cap_c <= S_WAIT_VSYNC;
+          fsm_cap_c <= S_WAIT_VSYNC_HIGH;
         END IF;  
         
       WHEN S_FINISH => 
@@ -93,20 +93,28 @@ BEGIN
           frame_miss_c <= '0';
           fsm_cap_c <= S_IDLE;
         ELSIF run = '1' AND vsync = '1' THEN
-          fsm_cap_c <= S_WAIT_HREF;
+          fsm_cap_c <= S_WAIT_VSYNC_LOW;
         ELSIF run = '1' THEN
-          fsm_cap_c <= S_WAIT_VSYNC;
+          fsm_cap_c <= S_WAIT_VSYNC_HIGH;
         ELSIF vsync = '1' THEN 
           frame_miss_c <= '1';
         END IF;
       
-      WHEN S_WAIT_VSYNC =>
+      WHEN S_WAIT_VSYNC_HIGH =>
         frame_miss_c <= '0';
         IF ena = '0' THEN
           fsm_cap_c <= S_IDLE;
         ELSIF vsync = '1' THEN
-          fsm_cap_c <= S_WAIT_HREF;
+          fsm_cap_c <= S_WAIT_VSYNC_LOW;
         END IF;
+        
+      WHEN S_WAIT_VSYNC_LOW =>
+        frame_miss_c <= '0';
+        IF ena = '0' THEN
+          fsm_cap_c <= S_IDLE;
+        ELSIF vsync = '0' THEN
+          fsm_cap_c <= S_WAIT_HREF;
+        END IF;        
       
       WHEN S_WAIT_HREF =>
         IF ena = '0' THEN
@@ -159,7 +167,9 @@ BEGIN
         busy_c <= '0';
         href_cnt_c <= (OTHERS => '0');
         
-      WHEN S_WAIT_VSYNC =>
+      WHEN S_WAIT_VSYNC_HIGH =>
+      
+      WHEN S_WAIT_VSYNC_LOW =>      
         
       WHEN S_WAIT_HREF =>
         href_busy_c <= '1';
