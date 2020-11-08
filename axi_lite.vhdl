@@ -2,6 +2,8 @@ LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 use IEEE.numeric_std.all;
 
+library work;
+use work.axi_cam_pkg.all;
 
 ENTITY axi_lite IS
   port (
@@ -129,8 +131,8 @@ ARCHITECTURE rtl OF axi_lite IS
       clock_mux_s    <= '0';
       test_ena_s     <= '0';
       busy_s         <= '0';
-      cam_reset_s    <= '1';
-      cam_pwdn_s     <= '1';
+      cam_reset_s    <= '0';
+      cam_pwdn_s     <= '0';
       sccb_data_s    <= (others => '0');
       clk_check_ena_s<= '0';
       int_ena_s      <= '0';
@@ -222,13 +224,13 @@ ARCHITECTURE rtl OF axi_lite IS
  -- output read mux
  output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, new_frame_s, ena_s, addr_lock_s,
                             curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s, cap_frm_miss,
-                            href_busy, capture_err, finish_s, busy, clk_check_ena_s, int_ena_s, int_sts_err, int_sts_fin)
+                            href_busy, capture_err, finish_s, busy, clk_check_ena_s, int_ena_s, int_sts_err, int_sts_fin, clk_check_ok)
  BEGIN
     rdata_c <= (others => '0');
     rresp_c <= OKAY;   
     IF ARVALID = '1' AND fsm_read_s = R_AREADY THEN
       CASE ARADDR(5 downto 2) IS 
-        WHEN "0000" => 
+        WHEN C_ADDR_START => 
           rdata_c(23 downto 16) <= num_frames;
           rdata_c(11)           <= cap_frm_miss;
           rdata_c(10)           <= clk_check_ok; 
@@ -237,29 +239,26 @@ ARCHITECTURE rtl OF axi_lite IS
           rdata_c(3)            <= capture_err;
           rdata_c(1)            <= finish_s;          
           rdata_c(0)            <= busy;
-        WHEN "0001" =>
+        WHEN C_ADDR_DIAG =>
           rdata_c(2) <= clk_check_ena_s;
           rdata_c(1) <= clock_mux_s;
           rdata_c(0) <= test_ena_s;
-        WHEN "0010" =>   
+        WHEN C_ADDR_ADDR =>   
           rdata_c <= curr_addr;
-        WHEN "0011" =>   
-          rdata_c(7 downto 5) <= (others => '0');
-          rdata_c(3)          <= cam_pwdn_s;
-          rdata_c(2)          <= cam_reset_s;
-          rdata_c(1)          <= clock_mux_s;
-          rdata_c(0)          <= test_ena_s;
-        WHEN "0100" =>
+        WHEN C_ADDR_CTRL =>   
+          rdata_c(1) <= cam_pwdn_s;
+          rdata_c(0) <= cam_reset_s;
+        WHEN C_ADDR_SCCB =>
           rdata_c(15 downto 0) <= sccb_data_s;
-        WHEN "0101" =>
+        WHEN C_ADDR_SCCB_CTRL =>
           rdata_c(1) <= ack_sccb;
           rdata_c(0) <= busy_sccb;
-        WHEN "0110" =>
+        WHEN C_ADDR_INT_ENA =>
           rdata_c(0) <= int_ena_s;
-        WHEN "0111" =>
+        WHEN C_ADDR_INT_STS =>
           rdata_c(1) <= int_sts_err;
           rdata_c(0) <= int_sts_fin;
-        WHEN "1000" => 
+        WHEN C_ADDR_TEST => 
           rdata_c <= x"AA55AA55";
         WHEN others =>
           rresp_c <= SLVERR;
@@ -322,8 +321,8 @@ ARCHITECTURE rtl OF axi_lite IS
         bvalid_c  <= '0';
             
       WHEN W_ADDR_DAT => 
-        CASE AWADDR(4 downto 2) IS
-          WHEN "000" => 
+        CASE AWADDR(5 downto 2) IS
+          WHEN C_ADDR_START => 
             if WDATA(0) = '1' AND WDATA(2) = '0' then
               ena_c <= '1';
               IF busy = '0' THEN 
@@ -333,27 +332,27 @@ ARCHITECTURE rtl OF axi_lite IS
             elsif WDATA(2) = '1' then
               ena_c <= '0';
             end if;           
-          WHEN "001" => 
+          WHEN C_ADDR_DIAG => 
             test_ena_c      <= WDATA(0);
             clock_mux_c     <= WDATA(1);
             clk_check_ena_c <= WDATA(2);
-          WHEN "010" =>  
+          WHEN C_ADDR_ADDR  =>  
             IF busy = '0' THEN
               start_addr <= WDATA;
               addr_we    <= '1';
             END IF;
-          WHEN "011" =>           
+          WHEN C_ADDR_CTRL  =>           
             cam_reset_c <= WDATA(0);
             cam_pwdn_c  <= WDATA(1);
-          WHEN "100" =>
+          WHEN C_ADDR_SCCB =>
             sccb_data_c <= WDATA(15 downto 0);
-          WHEN "101" =>
+          WHEN C_ADDR_SCCB_CTRL =>
             IF busy_sccb = '0' THEN
               start_sccb_c <= WDATA(0);
             END IF;       
-          WHEN "110" =>
+          WHEN C_ADDR_INT_ENA =>
             int_ena_c <= WDATA(0);
-          WHEN "111" =>
+          WHEN C_ADDR_INT_STS =>
             int_clr_fin_c <= WDATA(0);    
             int_clr_err_c <= WDATA(1);
           WHEN others =>

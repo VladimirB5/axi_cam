@@ -63,7 +63,7 @@ check: axi_cam_pkg.vhdl tri_out.vhdl bi_dir.vhdl sccb_sender.vhdl sccb.vhdl axi_
 	ghdl -s --std=08 bi_dir.vhdl
 	ghdl -s --std=08 sccb_sender.vhdl
 	ghdl -s --std=08 sccb.vhdl
-	ghdl -s --std=08 axi_lite.vhdl
+#	ghdl -s --std=08 axi_lite.vhdl -- there is not axi_cam_pkg at this of check....
 	ghdl -s --std=08 fifo_write.vhdl
 	ghdl -s --std=08 fifo_read.vhdl
 	ghdl -s --std=08 RAM.vhdl

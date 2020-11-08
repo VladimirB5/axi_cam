@@ -23,6 +23,17 @@ package axi_cam_pkg is
   CONSTANT C_CNTB      : natural := 11;
   CONSTANT C_MIN_VAL   : natural := 948; -- 27 Mhz
   CONSTANT C_MAX_VAL   : natural := 1163; -- 22 MHZ
+  
+  -- reg addresses
+  CONSTANT  C_ADDR_START     : std_logic_vector(3 downto 0) := "0000";
+  CONSTANT  C_ADDR_DIAG      : std_logic_vector(3 downto 0) := "0001";
+  CONSTANT  C_ADDR_ADDR      : std_logic_vector(3 downto 0) := "0010";
+  CONSTANT  C_ADDR_CTRL      : std_logic_vector(3 downto 0) := "0011";
+  CONSTANT  C_ADDR_SCCB      : std_logic_vector(3 downto 0) := "0100";
+  CONSTANT  C_ADDR_SCCB_CTRL : std_logic_vector(3 downto 0) := "0101";
+  CONSTANT  C_ADDR_INT_ENA   : std_logic_vector(3 downto 0) := "0110";
+  CONSTANT  C_ADDR_INT_STS   : std_logic_vector(3 downto 0) := "0111";
+  CONSTANT  C_ADDR_TEST      : std_logic_vector(3 downto 0) := "1000";
       
 end package axi_cam_pkg;
  
