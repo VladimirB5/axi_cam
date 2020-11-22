@@ -6,6 +6,9 @@ library work;
 use work.axi_cam_pkg.all;
 
 ENTITY axi_lite IS
+  generic (
+    G_DIAG : boolean -- diagnostig logic added
+  );
   port (
   -- Global signals
   ACLK    : IN std_logic;
@@ -59,14 +62,16 @@ ENTITY axi_lite IS
   capture_busy : IN  std_logic;
   href_busy    : IN  std_logic; -- capturing href
   capture_err  : IN  std_logic;
-  cap_frm_miss : IN  std_logic;
   clk_check_ok : IN  std_logic;
   int_sts_fin  : IN  std_logic;
   int_sts_err  : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
-  num_frames   : IN  std_logic_vector(7 downto 0)
+  num_frames   : IN  std_logic_vector(31 downto 0);
+  miss_frames  : IN  std_logic_vector(31 downto 0); -- mised frames cap domain
+  frm_miss_ch  : IN  std_logic -- frame  miss change - hp domain
   ); 
 END ENTITY axi_lite;
+
 ARCHITECTURE rtl OF axi_lite IS
   -- signals
   signal busy : std_logic;
@@ -97,6 +102,9 @@ ARCHITECTURE rtl OF axi_lite IS
   signal finish_c, finish_s               : std_logic;
   signal int_clr_fin_s, int_clr_fin_c     : std_logic;
   signal int_clr_err_s, int_clr_err_c     : std_logic;
+  -- aux registers for frame miss 
+  signal frm_miss_ch_s                    : std_logic;
+  signal frm_miss_c, frm_miss_s           : std_logic_vector(31 downto 0);
   
   -- fsm read declaration
   TYPE t_read_state IS (R_IDLE, R_AREADY, R_VDATA);
@@ -169,8 +177,34 @@ ARCHITECTURE rtl OF axi_lite IS
       fsm_write_s    <= fsm_write_c;
     END IF;       
  END PROCESS state_reg;
+ 
+  frame_missed_yes: IF G_DIAG = true GENERATE
+    frm_reg : PROCESS (ACLK, ARESETn)
+    BEGIN
+      IF ARESETn = '0' THEN
+        frm_miss_ch_s <= '0';
+        frm_miss_s    <= (others => '0'); 
+      ELSIF ACLK = '1' AND ACLK'EVENT THEN
+        frm_miss_ch_s <= frm_miss_ch;
+        frm_miss_s    <= frm_miss_c; 
+      END IF;       
+    END PROCESS frm_reg;   
+  END GENERATE frame_missed_yes;
   
- -- combinational parts 
+  frame_missed_no: IF G_DIAG = false GENERATE
+    frm_miss_ch_s <= '0';
+    frm_miss_s    <= (others => '0'); 
+    frm_miss_c    <= (others => '0'); 
+  END GENERATE frame_missed_no;  
+  
+ -- combinational parts ------------------------------------------------------- 
+   miss_cnt_save: IF G_DIAG = true GENERATE
+    -- when value frm_miss_ch is different than value in reg, update
+    -- frm_miss_s registers
+    frm_miss_c <= miss_frames WHEN frm_miss_ch_s XOR frm_miss_ch ELSE 
+                  frm_miss_s;
+  END GENERATE miss_cnt_save;
+ 
  busy <= capture_busy OR hp_busy;
  
  busy_c <= busy;
@@ -223,7 +257,7 @@ ARCHITECTURE rtl OF axi_lite IS
   
  -- output read mux
  output_read_mux : PROCESS (fsm_read_s, ARVALID, ARADDR(4 downto 2), num_frames, busy_sccb, capture_busy, hp_busy, new_frame_s, ena_s, addr_lock_s,
-                            curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s, cap_frm_miss,
+                            curr_addr, clock_mux_s, test_ena_s, rdata_s, rresp_s, cam_pwdn_s, cam_reset_s, ack_sccb, sccb_data_s, frm_miss_s,
                             href_busy, capture_err, finish_s, busy, clk_check_ena_s, int_ena_s, int_sts_err, int_sts_fin, clk_check_ok)
  BEGIN
     rdata_c <= (others => '0');
@@ -231,9 +265,7 @@ ARCHITECTURE rtl OF axi_lite IS
     IF ARVALID = '1' AND fsm_read_s = R_AREADY THEN
       CASE ARADDR(5 downto 2) IS 
         WHEN C_ADDR_START => 
-          rdata_c(23 downto 16) <= num_frames;
-          rdata_c(11)           <= cap_frm_miss;
-          rdata_c(10)           <= clk_check_ok; 
+          rdata_c(16)           <= clk_check_ok; 
           rdata_c(9)            <= hp_busy;
           rdata_c(8)            <= href_busy;          
           rdata_c(3)            <= capture_err;
@@ -258,6 +290,10 @@ ARCHITECTURE rtl OF axi_lite IS
         WHEN C_ADDR_INT_STS =>
           rdata_c(1) <= int_sts_err;
           rdata_c(0) <= int_sts_fin;
+        WHEN C_ADDR_CAP_FRM =>
+          rdata_c <= num_frames;
+        WHEN C_ADDR_MISS_FRM =>
+          rdata_c <= frm_miss_s;
         WHEN C_ADDR_TEST => 
           rdata_c <= x"AA55AA55";
         WHEN others =>
@@ -351,10 +387,16 @@ ARCHITECTURE rtl OF axi_lite IS
               start_sccb_c <= WDATA(0);
             END IF;       
           WHEN C_ADDR_INT_ENA =>
-            int_ena_c <= WDATA(0);
+            int_ena_c <= WDATA(0);        
           WHEN C_ADDR_INT_STS =>
             int_clr_fin_c <= WDATA(0);    
             int_clr_err_c <= WDATA(1);
+          WHEN C_ADDR_CAP_FRM =>
+            -- RO address     
+          WHEN C_ADDR_MISS_FRM =>
+            -- RO address      
+          WHEN C_ADDR_TEST => 
+            -- RO address
           WHEN others =>
             bresp_c <= SLVERR;
         END CASE;      

@@ -6,6 +6,9 @@ library work;
 use work.axi_cam_pkg.all;
 
 ENTITY axi_hp IS
+  generic (
+    G_DIAG : boolean -- diagnostig logic added
+  );
   port (
   -- AXI signals
   -- Global signals
@@ -73,7 +76,7 @@ ENTITY axi_hp IS
   address  : IN  std_logic_vector(31 downto 0);
   addr_we  : IN  std_logic;
   curr_addr: OUT std_logic_vector(31 downto 0);
-  num_frm  : OUT std_logic_vector(7 downto 0);
+  num_frm  : OUT std_logic_vector(31 downto 0);
   busy     : OUT std_logic
   ); 
 END ENTITY axi_hp; 
@@ -85,8 +88,8 @@ ARCHITECTURE rtl OF axi_hp IS
   signal data_cnt_s     : unsigned(4 downto 0);
   signal re_c           : std_logic;
   signal re_s           : std_logic;
-  signal num_frame_s    : unsigned(7 downto 0);
-  signal num_frame_c    : unsigned(7 downto 0);
+  signal num_frame_s    : unsigned(31 downto 0);
+  signal num_frame_c    : unsigned(31 downto 0);
   signal trn_num_c      : unsigned(12 downto 0); -- transaction number
   signal trn_num_s      : unsigned(12 downto 0);
   signal busy_c         : std_logic;
@@ -119,7 +122,6 @@ BEGIN
       curr_address_s <= (others => '0');
       data_cnt_s     <= (others => '0');
       re_s           <= '0';
-      num_frame_s    <= (others => '0');      
       trn_num_s      <= (others => '0');
       busy_s         <= '0';
       -- axi signals
@@ -134,7 +136,6 @@ BEGIN
       curr_address_s <= curr_address_c;
       data_cnt_s     <= data_cnt_c;
       re_s           <= re_c;
-      num_frame_s    <= num_frame_c;
       trn_num_s      <= trn_num_c;
       busy_s         <= busy_c;
       -- axi signals
@@ -146,6 +147,21 @@ BEGIN
       bready_s       <= bready_c;
     END IF;       
   END PROCESS state_reg;
+  
+  frame_missed_yes: IF G_DIAG = true GENERATE
+    frm_reg : PROCESS (ACLK, ARESETn)
+    BEGIN
+      IF ARESETn = '0' THEN
+        num_frame_s <= (others => '0'); 
+      ELSIF ACLK = '1' AND ACLK'EVENT THEN
+        num_frame_s <= num_frame_c;
+      END IF;       
+    END PROCESS frm_reg;   
+  END GENERATE frame_missed_yes;
+  
+  frame_missed_no: IF G_DIAG = false GENERATE
+    num_frame_s    <= (others => '0'); 
+  END GENERATE frame_missed_no;  
 
 -------------------------------------------------------------------------------
 -- combinational parts 

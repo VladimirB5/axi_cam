@@ -33,7 +33,8 @@ package axi_cam_pkg is
   CONSTANT  C_ADDR_SCCB_CTRL : std_logic_vector(3 downto 0) := "0101";
   CONSTANT  C_ADDR_INT_ENA   : std_logic_vector(3 downto 0) := "0110";
   CONSTANT  C_ADDR_INT_STS   : std_logic_vector(3 downto 0) := "0111";
-  CONSTANT  C_ADDR_TEST      : std_logic_vector(3 downto 0) := "1000";
-      
+  CONSTANT  C_ADDR_CAP_FRM   : std_logic_vector(3 downto 0) := "1000";
+  CONSTANT  C_ADDR_MISS_FRM  : std_logic_vector(3 downto 0) := "1001";
+  CONSTANT  C_ADDR_TEST      : std_logic_vector(3 downto 0) := "1010";
 end package axi_cam_pkg;
  

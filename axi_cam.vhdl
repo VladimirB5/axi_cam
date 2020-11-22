@@ -114,6 +114,9 @@ ARCHITECTURE rtl OF axi_cam IS
 
 -- component declaration
 COMPONENT axi_lite IS
+  generic (
+    G_DIAG : boolean -- diagnostig logic added
+  );
   port (
   -- Global signals
   ACLK    : IN std_logic;
@@ -167,16 +170,20 @@ COMPONENT axi_lite IS
   capture_busy : IN  std_logic;
   href_busy    : IN  std_logic; -- capturing href
   capture_err  : IN  std_logic;
-  cap_frm_miss : IN  std_logic;
   clk_check_ok : IN  std_logic;
   int_sts_fin  : IN  std_logic;
   int_sts_err  : IN  std_logic;
   curr_addr    : IN  std_logic_vector(31 downto 0);
-  num_frames   : IN  std_logic_vector(7 downto 0)
+  num_frames   : IN  std_logic_vector(31 downto 0);
+  miss_frames  : IN  std_logic_vector(31 downto 0); -- mised frames cap domain
+  frm_miss_ch  : IN  std_logic -- frame  miss change - hp domain
   ); 
 end COMPONENT;
 
 COMPONENT axi_hp IS
+  generic (
+    G_DIAG : boolean -- diagnostig logic added
+  );
   port (
   -- AXI signals
   -- Global signals
@@ -244,7 +251,7 @@ COMPONENT axi_hp IS
   address  : IN  std_logic_vector(31 downto 0);
   addr_we  : IN  std_logic;
   curr_addr: OUT std_logic_vector(31 downto 0);
-  num_frm  : OUT std_logic_vector(7 downto 0);
+  num_frm  : OUT std_logic_vector(31 downto 0);
   busy     : OUT std_logic
   ); 
 end COMPONENT; 
@@ -285,6 +292,9 @@ COMPONENT fifo IS
 END COMPONENT;
 
 COMPONENT cam_capture IS
+  generic (
+    G_DIAG : boolean -- diagnostig logic added
+  );
   port (
    -- camera interaface 
    clk        : IN    std_logic;     
@@ -297,7 +307,8 @@ COMPONENT cam_capture IS
    run        : IN    std_logic; -- run capturing
    busy       : OUT   std_logic; -- capture in progress
    href_busy  : OUT   std_logic;
-   frame_mis  : OUT   std_logic; -- frame missed
+   frame_mis  : OUT   std_logic_vector(31 downto 0); -- frame missed
+   frm_mis_ch : OUT   std_logic; -- frame miss change (used for resynchronization)
    error      : OUT   std_logic;
    -- fifo interface
    data_w     : OUT std_logic_vector(63 downto 0);
@@ -434,7 +445,8 @@ END COMPONENT clk_check;
  signal  start_address    : std_logic_vector(31 downto 0);
  signal  curr_address     : std_logic_vector(31 downto 0);
  signal  addr_we          : std_logic;
- signal  num_frames       : std_logic_vector(7 downto 0);
+ signal  num_frames       : std_logic_vector(31 downto 0);
+ SIGNAL  miss_frames      : std_logic_vector(31 downto 0);
  signal  sccb_data        : std_logic_vector(15 downto 0);
  signal  new_frame        : std_logic;
  signal  hp_busy          : std_logic;
@@ -454,8 +466,8 @@ END COMPONENT clk_check;
  signal  cap_run, cap_run_25    : std_logic;
  signal  test_ena, test_ena_25  : std_logic;  
  signal  cap_busy_25, cap_busy  : std_logic;
- signal  cap_frm_mis_25         : std_logic;
- signal  cap_frm_mis            : std_logic;  
+ signal  cap_frm_mis_ch_25      : std_logic;
+ signal  cap_frm_mis_ch         : std_logic;  
  signal  cap_err, cap_err_25    : std_logic;
  signal  href_busy, href_busy_25: std_logic;
  
@@ -467,7 +479,11 @@ END COMPONENT clk_check;
  signal  sioc_i    : std_logic; -- interconnecte signal
   BEGIN
   
-  i_axi_lite: axi_lite PORT MAP (
+  i_axi_lite: axi_lite
+  GENERIC MAP (
+    G_DIAG => G_DIAG
+  )
+  PORT MAP (
     -- Global signals
     ACLK       => clk_100,
     ARESETn    => rstn_100,
@@ -520,15 +536,20 @@ END COMPONENT clk_check;
     capture_busy => cap_busy,-- IN  std_logic;
     href_busy    => href_busy, -- href capturing
     capture_err  => cap_err,-- IN  std_logic;
-    cap_frm_miss => cap_frm_mis,-- IN  std_logic;
     clk_check_ok => clk_check_ok, -- IN  std_logic;
     int_sts_fin  => int_sts_fin, -- IN  std_logic;
     int_sts_err  => int_sts_err, -- IN  std_logic;
     curr_addr    => curr_address, -- IN  std_logic_vector(31 downto 0);
-    num_frames   => num_frames -- IN  std_logic_vector(7 downto 0)    
+    num_frames   => num_frames,
+    miss_frames  => miss_frames, -- IN  std_logic_vector(31 downto 0); -- mised frames cap domain
+    frm_miss_ch  => cap_frm_mis_ch -- IN  std_logic -- frame  miss change - hp domain 
   ); 
 
-  i_axi_hp: axi_hp PORT MAP (
+  i_axi_hp: axi_hp
+  GENERIC MAP (
+    G_DIAG => G_DIAG
+  )
+  PORT MAP (
     -- AXI signals
     -- Global signals
     ACLK    => clk_100,
@@ -595,7 +616,7 @@ END COMPONENT clk_check;
     address  => start_address, -- IN (31 downto 0);
     addr_we  => addr_we, -- IN
     curr_addr=> curr_address, --out (31 downto 0)
-    num_frm  => num_frames, --out`(7 downto 0)
+    num_frm  => num_frames, --out`(31 downto 0)
     busy     => hp_busy --out 
   ); 
   
@@ -630,24 +651,29 @@ END COMPONENT clk_check;
     full_w   => full_w
   );   
   
-  i_cam_capture : cam_capture PORT MAP (
+  i_cam_capture : cam_capture
+  GENERIC MAP (
+    G_DIAG => G_DIAG
+  )
+  PORT MAP (
     -- camera interaface 
-    clk      => xclk_25,
-    vsync    => vsync_cap,
-    href     => href_cap,
-    data     => data_cap,
+    clk       => xclk_25,
+    vsync     => vsync_cap,
+    href      => href_cap,
+    data      => data_cap,
     -- internal signals
-    rstn     => xrstn_25,
-    ena      => ena_25,
-    run      => cap_run_25,
-    busy     => cap_busy_25,
-    href_busy=> href_busy_25,
-    frame_mis=> cap_frm_mis_25,
-    error    => cap_err_25,     
+    rstn      => xrstn_25,
+    ena       => ena_25,
+    run       => cap_run_25,
+    busy      => cap_busy_25,
+    href_busy => href_busy_25,
+    frame_mis => miss_frames,  -- OUT std_logic_vector(31 downto 0); -- frame missed
+    frm_mis_ch=> cap_frm_mis_ch_25, -- OUT   std_logic; -- frame miss change (used for resynchronization)
+    error     => cap_err_25,     
     -- fifo interface
-    data_w   => data_w,
-    we       => we,
-    full_w   => full_w
+    data_w    => data_w,
+    we        => we,
+    full_w    => full_w
   ); 
   
   i_clk_mux : clk_mux
@@ -818,7 +844,7 @@ END COMPONENT clk_check;
   port map (
     clk      => xclk_25,
     res_n    => xrstn_25, 
-    data_in  => cap_frm_mis_25,
-    data_out => cap_frm_mis
+    data_in  => cap_frm_mis_ch_25,
+    data_out => cap_frm_mis_ch
   );    
 END ARCHITECTURE RTL;
