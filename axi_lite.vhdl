@@ -198,10 +198,10 @@ ARCHITECTURE rtl OF axi_lite IS
   END GENERATE frame_missed_no;  
   
  -- combinational parts ------------------------------------------------------- 
-   miss_cnt_save: IF G_DIAG = true GENERATE
+  miss_cnt_save: IF G_DIAG = true GENERATE
     -- when value frm_miss_ch is different than value in reg, update
     -- frm_miss_s registers
-    frm_miss_c <= miss_frames WHEN frm_miss_ch_s XOR frm_miss_ch ELSE 
+    frm_miss_c <= miss_frames WHEN (frm_miss_ch_s XOR frm_miss_ch) = '1' ELSE 
                   frm_miss_s;
   END GENERATE miss_cnt_save;
  
