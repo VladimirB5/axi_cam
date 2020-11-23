@@ -104,18 +104,19 @@ BEGIN
   miss_cnt_gen: IF G_DIAG = true GENERATE
     vsync_c <= vsync; -- one edge delay
     
-    frm_miss_cnt: PROCESS(ena, run, vsync, vsync_s, fsm_cap_s, fsm_cap_c) 
+    frm_miss_cnt: PROCESS(ena, vsync, vsync_s, fsm_cap_s) 
     BEGIN 
-      frame_miss_change_c <= frame_miss_change_s;
       frame_miss_c        <= frame_miss_s;
       IF ena = '0' THEN
         frame_miss_c        <= (others => '0');
-        frame_miss_change_c <= NOT frame_miss_change_s;
-      ELSIF vsync_s = '1' AND vsync = '0' AND fsm_cap_s = S_FINISH AND fsm_cap_c = S_FINISH THEN -- falling edge on VSYNC, 
+      ELSIF vsync_s = '1' AND vsync = '0' AND fsm_cap_s = S_FINISH THEN -- falling edge on VSYNC, 
         frame_miss_c        <= frame_miss_s + 1;
-        frame_miss_change_c <= NOT frame_miss_change_s;
       END IF;
     END PROCESS frm_miss_cnt;
+    
+    frame_miss_change_c <= NOT frame_miss_change_s WHEN frame_miss_s /= frame_miss_c ELSE
+                           frame_miss_change_s;
+    
   END GENERATE miss_cnt_gen;
   
 
