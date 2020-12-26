@@ -319,7 +319,11 @@ static int dev_open(struct inode *inodep, struct file *filep){
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
    int error_count = 0;  
    
-   if (len == num_regs) { // read all bits
+   if (len == 1) {
+     data_read = readl(virt+C_ADDR_SCCB_CTRL);
+     error_count = copy_to_user(buffer, data, 4);
+   } 
+   else if(len == num_regs) { // read all bits
      data_read = readl(virt+C_ADDR_START);
      // spread register into bit field
      data[0] = data_read & C_BIT_START_BUSY_MASK; // start
