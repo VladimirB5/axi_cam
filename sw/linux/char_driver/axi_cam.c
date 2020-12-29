@@ -322,6 +322,12 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
    if (len == 1) {
      data_read = readl(virt+C_ADDR_SCCB_CTRL);
      error_count = copy_to_user(buffer, data, 4);
+     if (error_count == 0)
+       return 1;    
+     else {
+       printk(KERN_INFO "AXI_cam: error_count during read:%d\n", error_count);  
+       return 0;
+     }       
    } 
    else if(len == num_regs) { // read all bits
      data_read = readl(virt+C_ADDR_START);
@@ -360,10 +366,19 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
      data[19] = readl(virt+C_ADDR_MIS_FRM);     
      data[20] = readl(virt+C_ADDR_TEST);
      error_count = copy_to_user(buffer, data, len*4);
-     return 1;       
+     if (error_count == 0)
+       return 1;    
+     else
+       return 0;       
     
    } else if (len = C_FRAME_SIZE) {
-      error_count = copy_to_user(buffer, (void *) page, len);   
+      error_count = copy_to_user(buffer, (void *) page, len);
+      if (error_count == 0)
+        return 1;    
+      else {
+        printk(KERN_INFO "AXI_cam: error_count during read:%d\n", error_count);  
+        return 0;
+      }  
    } 
    else 
      return 0;
