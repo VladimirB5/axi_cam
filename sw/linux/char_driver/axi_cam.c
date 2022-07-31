@@ -26,7 +26,7 @@
 
 #define  DEVICE_NAME "axi_cam"     //< The device will appear at /dev/zed_io using this value
 #define  CLASS_NAME  "axi"         //< The device class -- this is a character device driver
-#define  C_ADDR_DEV 0x50000000     // device base address
+#define  C_ADDR_DEV 0x60000000     // device base address
 #define  C_ADDR_START     0x00
 #define  C_ADDR_DIAG      0x04
 #define  C_ADDR_ADDR      0x08
@@ -123,7 +123,7 @@ static dma_addr_t bus_addr;
 
 
 // The prototype functions for the character driver -- must come before the struct definition
-static int send_sig_info(int sig, struct siginfo *info, struct task_struct *p);
+int send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p);
 static int     dev_open(struct inode *, struct file *);
 static int     dev_release(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
@@ -193,6 +193,7 @@ fail_irq:
 static int mydriver_of_remove(struct platform_device *of_dev)
 {
     free_irq(res->start, NULL);
+    return 0;
 }
 
 static const struct of_device_id mydriver_of_match[] = {
@@ -247,7 +248,7 @@ static int __init axi_cam_init(void){
    }
    
    // request for acces to IO
-   virt=ioremap_nocache(C_ADDR_DEV, 4096);
+   virt=ioremap(C_ADDR_DEV, 4096);
    
    platform_driver_register(&mydrive_of_driver);
    
@@ -288,7 +289,8 @@ static int __init axi_cam_init(void){
  */
 static void __exit axi_cam_exit(void){
    iounmap(virt);                                          // free memory 
-   free_pages(page, 8);
+   printk(KERN_INFO "AXI_cam: axi lite freeing ok\n");
+   //free_pages(page, 8);
    //kfree(stuff);
    platform_driver_unregister(&mydrive_of_driver);
    device_destroy(axi_camClass, MKDEV(majorNumber, 0));    // remove the device
@@ -538,7 +540,7 @@ static int dev_release(struct inode *inodep, struct file *filep){
  *  return returns IRQ_HANDLED if successful -- should return IRQ_NONE otherwise.
  */
 static irq_handler_t axi_cam_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
-   struct siginfo info;
+   struct kernel_siginfo info;
    writel(0x00000003 ,virt + C_ADDR_INT_STS);  // clear all pending interrupt 
    
    // this should take care that cache will be ok
