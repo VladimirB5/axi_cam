@@ -1,1 +1,1 @@
-version of kernel: linux-xlnx v2018.3, working OK
+version of kernel: linux-xlnx v2020.2, working OK

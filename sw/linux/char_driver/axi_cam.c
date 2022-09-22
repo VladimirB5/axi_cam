@@ -26,7 +26,7 @@
 
 #define  DEVICE_NAME "axi_cam"     //< The device will appear at /dev/zed_io using this value
 #define  CLASS_NAME  "axi"         //< The device class -- this is a character device driver
-#define  C_ADDR_DEV 0x50000000     // device base address
+#define  C_ADDR_DEV 0x60000000     // device base address
 #define  C_ADDR_START     0x00
 #define  C_ADDR_DIAG      0x04
 #define  C_ADDR_ADDR      0x08
@@ -123,7 +123,7 @@ static dma_addr_t bus_addr;
 
 
 // The prototype functions for the character driver -- must come before the struct definition
-static int send_sig_info(int sig, struct siginfo *info, struct task_struct *p);
+int send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p);
 static int     dev_open(struct inode *, struct file *);
 static int     dev_release(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
@@ -193,6 +193,7 @@ fail_irq:
 static int mydriver_of_remove(struct platform_device *of_dev)
 {
     free_irq(res->start, NULL);
+    return 0;
 }
 
 static const struct of_device_id mydriver_of_match[] = {
@@ -247,7 +248,7 @@ static int __init axi_cam_init(void){
    }
    
    // request for acces to IO
-   virt=ioremap_nocache(C_ADDR_DEV, 4096);
+   virt=ioremap(C_ADDR_DEV, 4096);
    
    platform_driver_register(&mydrive_of_driver);
    
@@ -288,7 +289,8 @@ static int __init axi_cam_init(void){
  */
 static void __exit axi_cam_exit(void){
    iounmap(virt);                                          // free memory 
-   free_pages(page, 8);
+   printk(KERN_INFO "AXI_cam: axi lite freeing ok\n");
+   //free_pages(page, 8);
    //kfree(stuff);
    platform_driver_unregister(&mydrive_of_driver);
    device_destroy(axi_camClass, MKDEV(majorNumber, 0));    // remove the device
@@ -435,9 +437,10 @@ static long dev_ioctl(struct file *filep, unsigned int _cmd, unsigned long _arg)
         }
         case AXI_CAM_START: // capture start
         {       
+          printk(KERN_INFO "Map DMA\n");
           // DMA set 
           bus_addr = dma_map_single(axi_camDevice, (void *) page, 614400, DMA_FROM_DEVICE);
-          
+          printk(KERN_INFO "DMA map OK\n");
             
           writel(1 ,virt + C_ADDR_START);
           wmb();
@@ -538,9 +541,11 @@ static int dev_release(struct inode *inodep, struct file *filep){
  *  return returns IRQ_HANDLED if successful -- should return IRQ_NONE otherwise.
  */
 static irq_handler_t axi_cam_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
-   struct siginfo info;
+   struct kernel_siginfo info;
+   printk(KERN_INFO "Clear pending interrupt\n");
    writel(0x00000003 ,virt + C_ADDR_INT_STS);  // clear all pending interrupt 
    
+   printk(KERN_INFO "Unmap_dma\n");
    // this should take care that cache will be ok
    dma_unmap_single(axi_camDevice, bus_addr,  614400, DMA_FROM_DEVICE);
    
@@ -549,7 +554,8 @@ static irq_handler_t axi_cam_irq_handler(unsigned int irq, void *dev_id, struct 
    
    // send signal to user space
  
-   memset(&info, 0, sizeof(struct siginfo));
+   printk(KERN_INFO "Set signal to user space\n");
+   memset(&info, 0, sizeof(struct kernel_siginfo));
    info.si_signo = SIGETX;
    info.si_code = SI_QUEUE;
    info.si_int = 1;
@@ -560,6 +566,7 @@ static irq_handler_t axi_cam_irq_handler(unsigned int irq, void *dev_id, struct 
         }
     }      
    
+   printk(KERN_INFO "Return handler\n");
    return (irq_handler_t) IRQ_HANDLED;      // Announce that the IRQ has been handled correctly
 }
 
